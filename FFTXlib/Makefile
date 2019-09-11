@@ -40,8 +40,15 @@ fft_scalar.o : fft_scalar.f90  fft_scalar.FFTW3.f90  fft_scalar.FFTW.f90  fft_sc
 
 fft_stick.o : fft_stick.c fftw.c fftw.h konst.h
 
+
 TEST : test.o libqefft.a
 	$(LD) $(LDFLAGS) -o fft_test.x test.o libqefft.a $(QELIBS)
+
+spfft.o : spfft.f90
+	$(LD) $(LDFLAGS) -c spfft.f90
+
+TEST_SPFFT :  spfft.o test_spfft.o libqefft.a
+	$(LD) $(LDFLAGS) -o fft_spfft_test.x test_spfft.o libqefft.a $(QELIBS) libspfft.a -ldstdc++
 
 TEST0:  test0.o libqefft.a
 	$(LD) $(LDFLAGS) -o fft_test0.x test0.o libqefft.a $(QELIBS)
