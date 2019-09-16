@@ -353,7 +353,8 @@ program test
   IF (gamma_only) incr = 2
   dffts%has_task_groups = (ntgs > 1)
   !
-  dffts%rho_clock_label='ffts' ; dffts%wave_clock_label='fftw'
+  dffts%rho_clock_label='ffts'
+  dffts%wave_clock_label='fftw'
   CALL fft_type_init(dffts, smap, "wave", gamma_only, .true., comm, at, bg, gkcut, gcutms/gkcut, nyfft=ntgs)
   dfftp%rho_clock_label='fft' 
   CALL fft_type_init(dfftp, smap, "rho", gamma_only, .true., comm, at, bg, gcutm, 4.d0, nyfft=ntgs)
@@ -418,7 +419,7 @@ program test
     ! create grid and transform
     local_z_length = dffts%my_nr3p
     spfft_error = spfft_error + spfft_grid_create_distributed(grid, dffts%nr1, dffts%nr2, dffts%nr3,&
-      dffts%nsp(dffts%mype+1), local_z_length, 1, -1, MPI_COMM_WORLD, SPFFT_EXCH_BUFFERED);
+      dffts%nsp(dffts%mype+1), local_z_length, SPFFT_PU_HOST, -1, MPI_COMM_WORLD, SPFFT_EXCH_BUFFERED)
     if (spfft_error .ne. SPFFT_SUCCESS) ERROR STOP
 
     if (gamma_only) transform_type = SPFFT_TRANS_R2C
@@ -478,11 +479,11 @@ program test
 
     ! bands are always transformed indivdually with SpFFT, even if gamma is used (R2C transform)
     DO ib = 1, nbnd, 1
-      my_time(1) = my_time(1) - MPI_WTIME();
+      my_time(1) = my_time(1) - MPI_WTIME()
       spfft_error = spfft_transform_backward(transform, psi(:,ib), SPFFT_PU_HOST)
-      my_time(1) = my_time(1) + MPI_WTIME();
+      my_time(1) = my_time(1) + MPI_WTIME()
       !
-      my_time(2) = my_time(2) - MPI_WTIME();
+      my_time(2) = my_time(2) - MPI_WTIME()
       if (gamma_only) then
         ! real valued
         DO j = 1, spfft_slice_size
@@ -493,11 +494,11 @@ program test
           space_domain(j) = space_domain(j) * v(j)
         ENDDO
       endif
-      my_time(2) = my_time(2) + MPI_WTIME();
+      my_time(2) = my_time(2) + MPI_WTIME()
       !
-      my_time(3) = my_time(3) - MPI_WTIME();
+      my_time(3) = my_time(3) - MPI_WTIME()
       spfft_error = spfft_transform_forward(transform, SPFFT_PU_HOST, hpsi(:,ib), SPFFT_FULL_SCALING)
-      my_time(3) = my_time(3) + MPI_WTIME();
+      my_time(3) = my_time(3) + MPI_WTIME()
       !
       ncount = ncount + 1
     ENDDO
@@ -505,24 +506,23 @@ program test
   else
     DO ib = 1, nbnd, incr
       !
-      my_time(1) = my_time(1) - MPI_WTIME();
+      my_time(1) = my_time(1) - MPI_WTIME()
       call prepare_psi(ib, nbnd, ngms, psi, psic, dffts, gamma_only)
-      time(2) = MPI_WTIME()
       !
-      CALL invfft('Rho', psic, dffts); time(3) = MPI_WTIME()
-      my_time(1) = my_time(1) + MPI_WTIME();
+      CALL invfft('Rho', psic, dffts)
+      my_time(1) = my_time(1) + MPI_WTIME()
       !
-      my_time(2) = my_time(2) - MPI_WTIME();
+      my_time(2) = my_time(2) - MPI_WTIME()
       DO j = 1, dffts%nnr
         psic(j) = psic(j)*v(j)
       ENDDO
-      my_time(2) = my_time(2) + MPI_WTIME();
+      my_time(2) = my_time(2) + MPI_WTIME()
       !
-      my_time(3) = my_time(3) - MPI_WTIME();
-      CALL fwfft('Rho', psic, dffts); 
+      my_time(3) = my_time(3) - MPI_WTIME()
+      CALL fwfft('Rho', psic, dffts)
       !
       CALL accumulate_hpsi(ib, nbnd, ngms, hpsi, psic, dffts, gamma_only)
-      my_time(3) = my_time(3) + MPI_WTIME();
+      my_time(3) = my_time(3) + MPI_WTIME()
       !
       ncount = ncount + 1
       !
