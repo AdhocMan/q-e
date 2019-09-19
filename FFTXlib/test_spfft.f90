@@ -95,7 +95,7 @@ program test
   !! number of bands
   LOGICAL :: iope
   !! I/O process
-  INTEGER :: ierr, i, j, ncount, ib
+  INTEGER :: ierr, i, j, ncount, ib, rp
   INTEGER :: incr=1, right_nr3
   INTEGER :: ngw_, ngm_, ngs_
   REAL*8  :: gcutm, gkcut, gcutms
@@ -113,6 +113,8 @@ program test
   REAL*8  :: time_avg(100)
   REAL*8  :: wall
   REAL*8  :: wall_avg
+  REAL*8  :: wall_min
+  REAL*8  :: wall_max
   !
   LOGICAL :: gamma_only = .false.
   !! if calculations require only gamma point
@@ -144,6 +146,7 @@ program test
   integer :: spfft_error = 0
   integer :: local_z_length = 0
   integer :: spfft_slice_size = 0
+  integer :: num_repeats = 1
   LOGICAL :: use_spfft = .false.
   integer :: transform_type = SPFFT_TRANS_C2C
   REAL(DP), pointer :: space_domain_real(:)
@@ -238,7 +241,12 @@ program test
       CALL get_command_argument(i + 1, arg)
       READ (arg, *) use_spfft
     END IF
+    IF (TRIM(arg) == '-repeats') THEN
+      CALL get_command_argument(i + 1, arg)
+      READ (arg, *) num_repeats
+    END IF
   end do
+
   if (ecutrho == 0.d0) ecutrho = 4.0d0*ecutwfc
 
 #if defined(__MPI)
@@ -338,7 +346,8 @@ program test
     write (*, *) 'Num procs      = ', npes
     write (*, *) 'Num Task Group = ', ntgs
     write (*, *) 'Gamma trick    = ', gamma_only
-    write (*, *) 'spfft    = ', use_spfft
+    write (*, *) 'spfft          = ', use_spfft
+    write (*, *) 'repeats        = ', num_repeats
   end if
   !
   nx = 2*int(sqrt(gcutm)*sqrt(at(1, 1)**2 + at(2, 1)**2 + at(3, 1)**2)) + 1
@@ -405,14 +414,6 @@ program test
   END IF
   CALL ggens( dffts, gamma_only, at, g, gg, mill, gcutms, ngms )
   !
-  ! --------  RESET TIMERS
-  !
-  time = 0.0d0
-  my_time = 0.0d0
-  time_min = 0.0d0
-  time_max = 0.0d0
-  time_avg = 0.0d0
-  !
   ! Initialize SpFFT
   !
   if (use_spfft) then
@@ -449,6 +450,14 @@ program test
   endif
   ! Now for real,
   !
+  ! --------  RESET TIMERS
+  !
+  time = 0.0d0
+  my_time = 0.0d0
+  time_min = 0.0d0
+  time_max = 0.0d0
+  time_avg = 0.0d0
+  !
   ! --------  RECORD TIMES
   !
   wall = MPI_WTIME()
@@ -468,66 +477,68 @@ program test
   ncount = 0
   !
   !
-  if (use_spfft) then
-    ! slice size for SpFFT must be exact (dffts%nnr is equal on all ranks)
-    spfft_error = spfft_error + spfft_transform_local_slice_size(transform, spfft_slice_size)
+  do rp = 1, num_repeats
+    if (use_spfft) then
+      ! slice size for SpFFT must be exact (dffts%nnr is equal on all ranks)
+      spfft_error = spfft_error + spfft_transform_local_slice_size(transform, spfft_slice_size)
 
-    ! get real space domain from transform
-    spfft_error = spfft_transform_get_space_domain(transform, SPFFT_PU_HOST, space_domain_ptr)
-    call c_f_pointer(space_domain_ptr, space_domain, [size(psic)])
-    call c_f_pointer(space_domain_ptr, space_domain_real, [size(psic)])
+      ! get real space domain from transform
+      spfft_error = spfft_transform_get_space_domain(transform, SPFFT_PU_HOST, space_domain_ptr)
+      call c_f_pointer(space_domain_ptr, space_domain, [size(psic)])
+      call c_f_pointer(space_domain_ptr, space_domain_real, [size(psic)])
 
-    ! bands are always transformed indivdually with SpFFT, even if gamma is used (R2C transform)
-    DO ib = 1, nbnd, 1
-      my_time(1) = my_time(1) - MPI_WTIME()
-      spfft_error = spfft_transform_backward(transform, psi(:,ib), SPFFT_PU_HOST)
-      my_time(1) = my_time(1) + MPI_WTIME()
-      !
-      my_time(2) = my_time(2) - MPI_WTIME()
-      if (gamma_only) then
-        ! real valued
-        DO j = 1, spfft_slice_size
-          space_domain_real(j) = space_domain_real(j) * v(j)
-        ENDDO
-      else
-        DO j = 1, spfft_slice_size
-          space_domain(j) = space_domain(j) * v(j)
-        ENDDO
-      endif
-      my_time(2) = my_time(2) + MPI_WTIME()
-      !
-      my_time(3) = my_time(3) - MPI_WTIME()
-      spfft_error = spfft_transform_forward(transform, SPFFT_PU_HOST, hpsi(:,ib), SPFFT_FULL_SCALING)
-      my_time(3) = my_time(3) + MPI_WTIME()
-      !
-      ncount = ncount + 1
-    ENDDO
-    if (spfft_error .ne. SPFFT_SUCCESS) ERROR STOP
-  else
-    DO ib = 1, nbnd, incr
-      !
-      my_time(1) = my_time(1) - MPI_WTIME()
-      call prepare_psi(ib, nbnd, ngms, psi, psic, dffts, gamma_only)
-      !
-      CALL invfft('Rho', psic, dffts)
-      my_time(1) = my_time(1) + MPI_WTIME()
-      !
-      my_time(2) = my_time(2) - MPI_WTIME()
-      DO j = 1, dffts%nnr
-        psic(j) = psic(j)*v(j)
+      ! bands are always transformed indivdually with SpFFT, even if gamma is used (R2C transform)
+      DO ib = 1, nbnd, 1
+        my_time(1) = my_time(1) - MPI_WTIME()
+        spfft_error = spfft_transform_backward(transform, psi(:,ib), SPFFT_PU_HOST)
+        my_time(1) = my_time(1) + MPI_WTIME()
+        !
+        my_time(2) = my_time(2) - MPI_WTIME()
+        if (gamma_only) then
+          ! real valued
+          DO j = 1, spfft_slice_size
+            space_domain_real(j) = space_domain_real(j) * v(j)
+          ENDDO
+        else
+          DO j = 1, spfft_slice_size
+            space_domain(j) = space_domain(j) * v(j)
+          ENDDO
+        endif
+        my_time(2) = my_time(2) + MPI_WTIME()
+        !
+        my_time(3) = my_time(3) - MPI_WTIME()
+        spfft_error = spfft_transform_forward(transform, SPFFT_PU_HOST, hpsi(:,ib), SPFFT_FULL_SCALING)
+        my_time(3) = my_time(3) + MPI_WTIME()
+        !
+        ncount = ncount + 1
       ENDDO
-      my_time(2) = my_time(2) + MPI_WTIME()
-      !
-      my_time(3) = my_time(3) - MPI_WTIME()
-      CALL fwfft('Rho', psic, dffts)
-      !
-      CALL accumulate_hpsi(ib, nbnd, ngms, hpsi, psic, dffts, gamma_only)
-      my_time(3) = my_time(3) + MPI_WTIME()
-      !
-      ncount = ncount + 1
-      !
-    ENDDO
-  endif
+      if (spfft_error .ne. SPFFT_SUCCESS) ERROR STOP
+    else
+      DO ib = 1, nbnd, incr
+        !
+        my_time(1) = my_time(1) - MPI_WTIME()
+        call prepare_psi(ib, nbnd, ngms, psi, psic, dffts, gamma_only)
+        !
+        CALL invfft('Rho', psic, dffts)
+        my_time(1) = my_time(1) + MPI_WTIME()
+        !
+        my_time(2) = my_time(2) - MPI_WTIME()
+        DO j = 1, dffts%nnr
+          psic(j) = psic(j)*v(j)
+        ENDDO
+        my_time(2) = my_time(2) + MPI_WTIME()
+        !
+        my_time(3) = my_time(3) - MPI_WTIME()
+        CALL fwfft('Rho', psic, dffts)
+        !
+        CALL accumulate_hpsi(ib, nbnd, ngms, hpsi, psic, dffts, gamma_only)
+        my_time(3) = my_time(3) + MPI_WTIME()
+        !
+        ncount = ncount + 1
+        !
+      ENDDO
+    endif
+  enddo
     !
   wall = MPI_WTIME() - wall
 
@@ -548,10 +559,15 @@ program test
   CALL MPI_ALLREDUCE(my_time, time_max, 10, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
   CALL MPI_ALLREDUCE(my_time, time_avg, 10, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
   CALL MPI_ALLREDUCE(wall, wall_avg, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+  CALL MPI_ALLREDUCE(wall, wall_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+  CALL MPI_ALLREDUCE(wall, wall_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 #else
-  time_min = time
-  time_max = time
-  time_avg = time
+  time_min = my_time
+  time_max = my_time
+  time_avg = my_time
+  wall_avg = wall
+  wall_min = wall
+  wall_max = wall
 #endif
 
   time_avg = time_avg / npes
@@ -572,7 +588,7 @@ program test
     write(*,2) time_min(1), time_max(1), time_avg(1)
     write(*,3) time_min(2), time_max(2), time_avg(2)
     write(*,4) time_min(3), time_max(3), time_avg(3)
-    write(*,7) wall 
+    write(*,7) wall_min, wall_max, wall_avg
     write(*,100) 
 
 100 FORMAT(' +--------------------+----------------+-----------------+----------------+' )
@@ -580,7 +596,7 @@ program test
 2   FORMAT(' |prepare + invfft    | ',    D14.5, ' | ',   D14.3,  '  | ', D14.3,    ' |' )
 3   FORMAT(' |workload            | ',    D14.5, ' | ',   D14.3,  '  | ', D14.3 ,   ' |')
 4   FORMAT(' |fwfft + accumulate  | ',    D14.5, ' | ',   D14.3,  '  | ', D14.3 ,   ' |')
-7   FORMAT(' |wall time           | ',    D14.5, ' |')
+7   FORMAT(' |wall time           | ',    D14.5, ' | ',   D14.3,  '  | ', D14.3 ,   ' |')
 
   end if
   ! now print FFT clocks
