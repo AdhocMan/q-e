@@ -48,7 +48,7 @@ spfft.o : spfft.f90
 	$(LD) $(LDFLAGS) -c spfft.f90
 
 TEST_SPFFT : libqefft.a spfft.o test_spfft.o libqefft.a
-	$(LD) $(LDFLAGS) -o fft_spfft_test.x test_spfft.o libqefft.a $(QELIBS) libspfft.a -ldstdc++
+	$(LD) $(LDFLAGS) -o fft_spfft_test.x test_spfft.o libqefft.a $(QELIBS) libspfft.a -lstdc++
 
 TEST0:  test0.o libqefft.a
 	$(LD) $(LDFLAGS) -o fft_test0.x test0.o libqefft.a $(QELIBS)
