@@ -426,7 +426,7 @@ program test
     if (gamma_only) transform_type = SPFFT_TRANS_R2C
     spfft_error = spfft_error + spfft_transform_create(transform, grid, SPFFT_PU_HOST,&
       transform_type, dffts%nr1, dffts%nr2, dffts%nr3,&
-      local_z_length, size(mill)/3, 0, mill)
+      local_z_length, size(mill)/3, SPFFT_INDEX_TRIPLETS, mill)
     if (spfft_error .ne. SPFFT_SUCCESS) ERROR STOP
 
     spfft_error = spfft_error + spfft_grid_destroy(grid)
