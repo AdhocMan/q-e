@@ -20,6 +20,7 @@ PROGRAM lax_spla
 #endif
   INTEGER :: mype, npes, comm, ntgs
   INTEGER :: ierr
+  INTEGER :: i
   INTEGER :: nvec
   INTEGER :: ndiag
   INTEGER :: repeats
@@ -38,6 +39,8 @@ PROGRAM lax_spla
   COMPLEX(DP), ALLOCATABLE :: A(:,:)
   COMPLEX(DP), ALLOCATABLE :: B(:,:)
   COMPLEX(DP), ALLOCATABLE :: C(:,:)
+  integer :: nargs
+  CHARACTER(LEN=80) :: arg
 
 #if defined(__MPI)
 
@@ -63,9 +66,28 @@ PROGRAM lax_spla
   alpha = ONE
   beta = ZERO
 
-  repeats = 5
+  repeats = 20
   nvec = 2000
   kdim = 10
+
+  nargs = command_argument_count()
+  do i = 1, nargs - 1
+    CALL get_command_argument(i, arg)
+    IF (TRIM(arg) == '-r') THEN
+      CALL get_command_argument(i + 1, arg)
+      READ (arg, *) repeats
+    END IF
+    IF (TRIM(arg) == '-k') THEN
+      CALL get_command_argument(i + 1, arg)
+      READ (arg, *) kdim
+    END IF
+    IF (TRIM(arg) == '-n') THEN
+      CALL get_command_argument(i + 1, arg)
+      READ (arg, *) nvec
+    END IF
+  end do
+
+
   kdmx = kdim
 
   ALLOCATE(  A( kdmx, nvec ), STAT=ierr )
@@ -84,8 +106,11 @@ PROGRAM lax_spla
   ierr = spla_mat_dis_create_block_cyclic(matDis, comm, 'C', idesc(LAX_DESC_NPR), &
             idesc(LAX_DESC_NPC), idesc(LAX_DESC_NRCX), idesc(LAX_DESC_NRCX))
 
-  if( mype == 1 ) then
-
+  if( mype == 0 ) then
+    write(6,*) 'n  = ', nvec
+    write(6,*) 'k  = ', kdim
+    write(6,*) 'repeats  = ', repeats
+    write(6,*) '=================================='
     write(6,*) 'num. procs  = ', npes
     write(6,*) 'nx = ', nx
     write(6,*) 'la_proc = ', la_proc
@@ -103,7 +128,6 @@ PROGRAM lax_spla
     write(6,*) 'idesc(LAX_DESC_NRCX)= ', idesc(LAX_DESC_NRCX)
     write(6,*) 'idesc(LAX_DESC_NPR)= ', idesc(LAX_DESC_NPR)
     write(6,*) 'idesc(LAX_DESC_NPC)= ', idesc(LAX_DESC_NPC)
-
   endif
 
   ! allocate( proc_name( npes ) )
@@ -115,6 +139,7 @@ PROGRAM lax_spla
 
 
   CALL compute_distmat(C, A, B) ! warm up
+  CALL init_clocks( .true. )
   DO ii = 1, repeats
     CALL start_clock( 'compute_distmat' )
     CALL compute_distmat(C, A, B)
@@ -122,12 +147,14 @@ PROGRAM lax_spla
   END DO
 
   ! warm up
-  ierr = spla_pzgemm_ssb(nvec, nvec, kdim, SPLA_OP_CONJ_TRANSPOSE, alpha, A, &
-                         kdim, B, kdim, beta, C, nvec, 0, 0, matDis, ctx)
+  ierr = spla_pzgemm_ssbtr(nvec, nvec, kdim, SPLA_OP_CONJ_TRANSPOSE, alpha, A, &
+                         kdim, B, kdim, beta, C, nvec, 0, 0, SPLA_FILL_MODE_UPPER,&
+                         matDis, ctx)
   DO ii = 1, repeats
     CALL start_clock( 'spla_pzgemm' )
-    ierr = spla_pzgemm_ssb(nvec, nvec, kdim, SPLA_OP_CONJ_TRANSPOSE, alpha, A, &
-                           kdim, B, kdim, beta, C, nvec, 0, 0, matDis, ctx)
+    ierr = spla_pzgemm_ssbtr(nvec, nvec, kdim, SPLA_OP_CONJ_TRANSPOSE, alpha, A, &
+                           kdim, B, kdim, beta, C, nvec, 0, 0, SPLA_FILL_MODE_UPPER,&
+                           matDis, ctx)
     CALL stop_clock( 'spla_pzgemm' )
   END DO
 
@@ -135,6 +162,10 @@ PROGRAM lax_spla
   if( mype == 0 ) then
     write(6,*)  'compute_distmat' 
     CALL print_clock( 'compute_distmat' )
+    write(6,*)  'compute matrix blocks' 
+    CALL print_clock( 'compute matrix blocks' )
+    write(6,*)  'sym' 
+    CALL print_clock( 'sym' )
     write(6,*)  'spla_pzgemm_ssb' 
     CALL print_clock( 'spla_pzgemm' )
   endif
@@ -276,6 +307,7 @@ SUBROUTINE compute_distmat( dm, v, w )
    COMPLEX(DP) :: v(:,:), w(:,:)
    COMPLEX(DP), ALLOCATABLE :: work( :, : )
    !
+   CALL start_clock( 'compute matrix blocks' )
    ALLOCATE( work( nx, nx ) )
    !
    work = ZERO
@@ -308,10 +340,13 @@ SUBROUTINE compute_distmat( dm, v, w )
       END DO
       !
    END DO
+   CALL stop_clock( 'compute matrix blocks' )
    !
    !  The matrix is hermitianized using upper triangle
    !
+   CALL start_clock( 'sym' )
    CALL laxlib_zsqmher( nvec, dm, nx, idesc )
+   CALL stop_clock( 'sym' )
    !
    DEALLOCATE( work )
    !

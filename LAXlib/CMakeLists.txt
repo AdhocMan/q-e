@@ -95,15 +95,14 @@ if(QE_ENABLE_TEST)
         COMMAND ${QE_TESTS_DIR}/qe_lax_test.x)
 
     find_package(SPLA CONFIG REQUIRED)
-    qe_add_executable(qe_lax_spla test_spla.f90 spla.f90)
+    qe_add_executable(qe_lax_spla test_spla.f90)
     set_target_properties(qe_lax_spla PROPERTIES OUTPUT_NAME qe_lax_spla.x RUNTIME_OUTPUT_DIRECTORY ${QE_TESTS_DIR})
     target_link_libraries(qe_lax_spla
         PRIVATE
-            QE::MPI_Fortran
-            QE::LAPACK
-            QE::SCALAPACK
-            QE::UTILX
-            QE::LAX
+            qe_mpi_fortran
+            qe_lapack
+            qe_utilx
+            qe_lax
             SPLA::spla
             )
 
