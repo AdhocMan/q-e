@@ -13,11 +13,11 @@
 SUBROUTINE update_distmat_c( dm, alpha, v, ldv, w, ldw, kdim, idesc, irc_ip, nrc_ip,&
                              rank_ip, nb1)
  USE laxlib_parallel_include
- ! USE util_param,    ONLY : DP
-  USE mp_bands_util,    ONLY : intra_bgrp_comm, inter_bgrp_comm, root_bgrp_id,&
-                               nbgrp, my_bgrp_id
-  USE mp,               ONLY : mp_bcast, mp_root_sum, mp_sum, mp_barrier, &
-                               mp_size, mp_type_free, mp_allgather
+ USE iso_c_binding
+#if defined __SPLA
+ USE spla
+#endif
+ USE mp,               ONLY : mp_root_sum
  !
  IMPLICIT NONE
  INCLUDE 'laxlib_kinds.fh'
@@ -39,10 +39,26 @@ SUBROUTINE update_distmat_c( dm, alpha, v, ldv, w, ldw, kdim, idesc, irc_ip, nrc
  COMPLEX(DP), ALLOCATABLE :: vtmp( :, : )
  INTEGER :: ipc, ipr
  INTEGER :: nx, nr, nc, ir, ic, root, icc, ii
+ INTEGER :: ierr
+ INTEGER :: status_spla
  INTEGER :: ortho_parent_comm
+ type(c_ptr) :: mat_dis_spla, ctx_spla
 
  nx = idesc(LAX_DESC_NRCX)
- CALL laxlib_getval( ortho_parent_comm = ortho_parent_comm )
+ CALL laxlib_getval( ortho_parent_comm = ortho_parent_comm, ctx_spla = ctx_spla, &
+                     mat_dis_spla = mat_dis_spla )
+
+#if defined __SPLA
+ status_spla = spla_mat_dis_set_row_block_size(mat_dis_spla, idesc(LAX_DESC_NRCX))
+ status_spla = spla_mat_dis_set_col_block_size(mat_dis_spla, idesc(LAX_DESC_NRCX))
+
+ status_spla = spla_pzgemm_ssbtr(idesc(LAX_DESC_N), idesc(LAX_DESC_N) - nb1 + 1, kdim, &
+          SPLA_OP_CONJ_TRANSPOSE, alpha, v, ldv, w(:, nb1), ldw, ONE, dm, nx, 0, &
+          nb1-1, SPLA_FILL_MODE_UPPER, mat_dis_spla, ctx_spla)
+
+ CALL laxlib_zsqmher( idesc(LAX_DESC_N), dm, nx, idesc )
+
+#else
 
  ALLOCATE( vtmp( nx, nx ) )
  !
@@ -94,5 +110,7 @@ SUBROUTINE update_distmat_c( dm, alpha, v, ldv, w, ldw, kdim, idesc, irc_ip, nrc
  CALL laxlib_zsqmher( idesc(LAX_DESC_N), dm, nx, idesc )
  !
  DEALLOCATE( vtmp )
+#endif
+
  RETURN
 END SUBROUTINE update_distmat_c

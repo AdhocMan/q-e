@@ -20,7 +20,9 @@ END INTERFACE laxlib_start
 
 INTERFACE laxlib_getval
 SUBROUTINE laxlib_getval_ ( nproc_ortho, leg_ortho, np_ortho, me_ortho, ortho_comm, ortho_row_comm, ortho_col_comm, &
-  ortho_comm_id, ortho_parent_comm, me_blacs, np_blacs, ortho_cntx, world_cntx, do_distr_diag_inside_bgrp  )
+  ortho_comm_id, ortho_parent_comm, me_blacs, np_blacs, ortho_cntx, world_cntx, do_distr_diag_inside_bgrp, &
+  ctx_spla, mat_dis_spla )
+  use ISO_C_BINDING
   IMPLICIT NONE
   INTEGER, OPTIONAL, INTENT(OUT) :: nproc_ortho
   INTEGER, OPTIONAL, INTENT(OUT) :: leg_ortho
@@ -36,6 +38,8 @@ SUBROUTINE laxlib_getval_ ( nproc_ortho, leg_ortho, np_ortho, me_ortho, ortho_co
   INTEGER, OPTIONAL, INTENT(OUT) :: ortho_cntx
   INTEGER, OPTIONAL, INTENT(OUT) :: world_cntx
   LOGICAL, OPTIONAL, INTENT(OUT) :: do_distr_diag_inside_bgrp
+  TYPE(C_PTR), OPTIONAL, INTENT(OUT) :: ctx_spla
+  TYPE(C_PTR), OPTIONAL, INTENT(OUT) :: mat_dis_spla
 END SUBROUTINE
 END INTERFACE
 

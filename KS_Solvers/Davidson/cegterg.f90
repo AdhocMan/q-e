@@ -948,9 +948,9 @@ SUBROUTINE pcegterg(h_psi, s_psi, uspp, g_psi, &
      END IF
      !
      !
-     ! CALL update_distmat_new( hl, alpha, psi, kdmx, hpsi, kdmx, kdim, idesc, irc_ip, &
-     !                          nrc_ip, rank_ip, nb1)
-     CALL update_distmat( hl, psi, hpsi )
+     CALL update_distmat_new( hl, alpha, psi, kdmx, hpsi, kdmx, kdim, idesc, irc_ip, &
+                              nrc_ip, rank_ip, nb1)
+     ! CALL update_distmat( hl, psi, hpsi )
      !
      IF ( uspp ) THEN
         !

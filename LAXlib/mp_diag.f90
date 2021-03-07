@@ -10,6 +10,8 @@
 MODULE laxlib_processors_grid
   !----------------------------------------------------------------------------
   !
+  use iso_c_binding
+  !
   IMPLICIT NONE 
   SAVE
   !
@@ -39,10 +41,15 @@ MODULE laxlib_processors_grid
                                                 ! at the band group level (bgrp) or at its parent level
   !
   LOGICAL :: lax_is_initialized = .false.
+  type(c_ptr) :: mat_dis_spla, ctx_spla
   !
 CONTAINS
   !
   SUBROUTINE laxlib_end_drv ( )
+#if defined __SPLA
+    use spla, ONLY: spla_ctx_destroy, spla_mat_dis_destroy
+    INTEGER :: status_spla   =  0
+#endif
     !  
     !  free resources associated to the communicator
     !
@@ -76,6 +83,10 @@ CONTAINS
     world_cntx = -1  ! BLACS context of all processor 
     ortho_cntx = -1  ! BLACS context for ortho_comm
     do_distr_diag_inside_bgrp = .true.
+#if defined __SPLA
+    status_spla = spla_ctx_destroy(ctx_spla)
+    status_spla = spla_mat_dis_destroy(mat_dis_spla)
+#endif
     !
   END SUBROUTINE laxlib_end_drv
   !

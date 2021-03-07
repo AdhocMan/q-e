@@ -99,6 +99,8 @@ option(QE_ENABLE_LIBXC
     "enable LIBXC execution units" OFF)
 option(QE_ENABLE_HDF5
     "enable HDF5 data collection" OFF)
+option(QE_ENABLE_SPLA
+    "enable SPLA" OFF)
 option(QE_ENABLE_DOC
     "enable documentation building" OFF)
 set(QE_FFTW_VENDOR "AUTO" CACHE 
@@ -139,6 +141,9 @@ if(QE_ENABLE_MPI)
 endif()
 if(QE_ENABLE_SCALAPACK)
     qe_add_global_compile_definitions(__SCALAPACK)
+endif()
+if(QE_ENABLE_SPLA)
+    qe_add_global_compile_definitions(__SPLA)
 endif()
 if(QE_ENABLE_HDF5)
     qe_add_global_compile_definitions(__HDF5)
@@ -313,6 +318,20 @@ if(QE_ENABLE_SCALAPACK)
             ${SCALAPACK_LIBRARIES}
             ${SCALAPACK_LINKER_FLAGS})
 endif(QE_ENABLE_SCALAPACK)
+
+###########################################################
+# SPLA
+# The following targets will be defined:
+add_library(qe_spla INTERFACE)
+qe_install_targets(qe_spla)
+###########################################################
+if(QE_ENABLE_SPLA)
+  find_package(SPLA CONFIG REQUIRED)
+    target_link_libraries(qe_scalapack
+        INTERFACE
+	    SPLA::spla)
+endif(QE_ENABLE_SCALAPACK)
+
 
 ###########################################################
 # ELPA

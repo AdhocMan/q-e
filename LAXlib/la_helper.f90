@@ -14,7 +14,8 @@ END SUBROUTINE laxlib_end
 
 
 SUBROUTINE laxlib_getval_ ( nproc_ortho, leg_ortho, np_ortho, me_ortho, ortho_comm, ortho_row_comm, ortho_col_comm, &
-  ortho_comm_id, ortho_parent_comm, me_blacs, np_blacs, ortho_cntx, world_cntx, do_distr_diag_inside_bgrp  )
+    ortho_comm_id, ortho_parent_comm, me_blacs, np_blacs, ortho_cntx, world_cntx, do_distr_diag_inside_bgrp, &
+    ctx_spla, mat_dis_spla)
   use laxlib_processors_grid, ONLY : &
     nproc_ortho_ => nproc_ortho, &
     leg_ortho_   => leg_ortho, &
@@ -29,7 +30,10 @@ SUBROUTINE laxlib_getval_ ( nproc_ortho, leg_ortho, np_ortho, me_ortho, ortho_co
     np_blacs_    => np_blacs, &
     ortho_cntx_  => ortho_cntx, &
     world_cntx_  => world_cntx, &
-    do_distr_diag_inside_bgrp_ => do_distr_diag_inside_bgrp
+    do_distr_diag_inside_bgrp_ => do_distr_diag_inside_bgrp, &
+    ctx_spla_ => ctx_spla, &
+    mat_dis_spla_ => mat_dis_spla
+  use ISO_C_BINDING
   IMPLICIT NONE
   INTEGER, OPTIONAL, INTENT(OUT) :: nproc_ortho
   INTEGER, OPTIONAL, INTENT(OUT) :: leg_ortho
@@ -45,6 +49,8 @@ SUBROUTINE laxlib_getval_ ( nproc_ortho, leg_ortho, np_ortho, me_ortho, ortho_co
   INTEGER, OPTIONAL, INTENT(OUT) :: ortho_cntx
   INTEGER, OPTIONAL, INTENT(OUT) :: world_cntx
   LOGICAL, OPTIONAL, INTENT(OUT) :: do_distr_diag_inside_bgrp
+  TYPE(C_PTR), OPTIONAL, INTENT(OUT) :: ctx_spla
+  TYPE(C_PTR), OPTIONAL, INTENT(OUT) :: mat_dis_spla
   IF( PRESENT(nproc_ortho) ) nproc_ortho = nproc_ortho_
   IF( PRESENT(leg_ortho) ) leg_ortho = leg_ortho_
   IF( PRESENT(np_ortho) ) np_ortho = np_ortho_
@@ -59,6 +65,8 @@ SUBROUTINE laxlib_getval_ ( nproc_ortho, leg_ortho, np_ortho, me_ortho, ortho_co
   IF( PRESENT(ortho_cntx) ) ortho_cntx = ortho_cntx_
   IF( PRESENT(world_cntx) ) world_cntx = world_cntx_
   IF( PRESENT(do_distr_diag_inside_bgrp) ) do_distr_diag_inside_bgrp = do_distr_diag_inside_bgrp_
+  IF( PRESENT(ctx_spla) ) ctx_spla = ctx_spla_
+  IF( PRESENT(mat_dis_spla) ) mat_dis_spla = mat_dis_spla_
 END SUBROUTINE
 !
 SUBROUTINE laxlib_get_status_x ( lax_status )
@@ -186,6 +194,9 @@ SUBROUTINE laxlib_start_drv( ndiag_, my_world_comm, parent_comm, do_distr_diag_i
 CONTAINS
 
   SUBROUTINE init_ortho_group ( nproc_try_in, my_world_comm, comm_all, nparent_comm, my_parent_id )
+#if defined __SPLA
+    use spla
+#endif
     !
     IMPLICIT NONE
 
@@ -195,6 +206,10 @@ CONTAINS
     INTEGER, INTENT(IN) :: my_parent_id ! id of the parent communicator 
 
     INTEGER :: ierr, color, key, me_all, nproc_all, nproc_try
+
+#if defined __SPLA
+    INTEGER :: status_spla
+#endif
 
 #if defined __SCALAPACK
     INTEGER, ALLOCATABLE :: blacsmap(:,:)
@@ -287,6 +302,21 @@ CONTAINS
        me_ortho(1) = me_ortho1
        me_ortho(2) = me_ortho1
     endif
+
+#if defined __SPLA
+#if defined __CUDA
+    status_spla = spla_ctx_create(ctx_spla, SPLA_PU_GPU)
+#else
+    status_spla = spla_ctx_create(ctx_spla, SPLA_PU_HOST)
+#endif
+    if( status_spla /= SPLA_SUCCESS ) &
+         CALL lax_error__( " init_ortho_group ", " error creating SPLA context ", ierr )
+
+    status_spla = spla_mat_dis_create_block_cyclic(mat_dis_spla, ortho_parent_comm, 'R', np_ortho(1), &
+                                                   np_ortho(2), 1, 1)
+    if( status_spla /= SPLA_SUCCESS ) &
+         CALL lax_error__( " init_ortho_group ", " error creating SPLA matrix distribution ", ierr )
+#endif
 
 #if defined __SCALAPACK
     !

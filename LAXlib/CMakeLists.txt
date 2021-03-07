@@ -24,6 +24,12 @@ target_link_libraries(qe_lax
         qe_lapack
         qe_utilx
         qe_devxlib)
+if(QE_ENABLE_SPLA)
+target_link_libraries(qe_lax
+    PRIVATE
+        qe_spla
+        )
+endif()
 if(QE_ENABLE_CUDA)
     if(QE_ENABLE_LAXLIB_CUSOLVER)
         if(CMAKE_Fortran_COMPILER_ID MATCHES "PGI")
