@@ -662,6 +662,8 @@ SUBROUTINE pcegterg(h_psi, s_psi, uspp, g_psi, &
     ! maximum local block dimension
   LOGICAL :: la_proc
     ! flag to distinguish procs involved in linear algebra
+  COMPLEX(DP) :: alpha
+    ! scaling of distribute mat computation
   INTEGER, ALLOCATABLE :: notcnv_ip( : )
   INTEGER, ALLOCATABLE :: ic_notcnv( : )
   !
@@ -777,6 +779,11 @@ SUBROUTINE pcegterg(h_psi, s_psi, uspp, g_psi, &
   notcnv = nvec
   nbase  = nvec
   conv   = .FALSE.
+  IF (ortho_parent_comm.ne.intra_bgrp_comm .and. nbgrp > 1) THEN
+    alpha = 1.0/nbgrp
+  ELSE
+    alpha = ONE
+  ENDIF
   !
   CALL threaded_memcpy(psi, evc, nvec*npol*npwx*2)
   !
@@ -941,6 +948,8 @@ SUBROUTINE pcegterg(h_psi, s_psi, uspp, g_psi, &
      END IF
      !
      !
+     ! CALL update_distmat_new( hl, alpha, psi, kdmx, hpsi, kdmx, kdim, idesc, irc_ip, &
+     !                          nrc_ip, rank_ip, nb1)
      CALL update_distmat( hl, psi, hpsi )
      !
      IF ( uspp ) THEN

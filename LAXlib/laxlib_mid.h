@@ -76,3 +76,24 @@ SUBROUTINE laxlib_pdtrtri_x ( sll, ldx, n, idesc )
    REAL(DP), INTENT( INOUT ) :: sll( ldx, ldx )
 END SUBROUTINE
 END INTERFACE
+
+INTERFACE update_distmat_new
+SUBROUTINE update_distmat_c( dm, alpha, v, ldv, w, ldw, kdim, idesc, irc_ip, nrc_ip,&
+                             rank_ip, nb1)
+ IMPLICIT NONE
+ INCLUDE 'laxlib_kinds.fh'
+ COMPLEX(DP), INTENT(IN) :: alpha
+ COMPLEX(DP), INTENT(INOUT) :: dm( :, : )
+ COMPLEX(DP), INTENT(IN) :: v(:,:)
+ INTEGER, INTENT(IN) :: ldv
+ COMPLEX(DP), INTENT(IN) :: w(:,:)
+ INTEGER, INTENT(IN) :: ldw
+ INTEGER, INTENT(IN)     :: kdim
+ INTEGER, INTENT(IN) :: idesc(:)
+ INTEGER, INTENT(IN) :: irc_ip( : )
+ INTEGER, INTENT(IN) :: nrc_ip( : )
+ INTEGER, INTENT(IN) :: rank_ip( :, : )
+ INTEGER, INTENT(IN) :: nb1
+END SUBROUTINE
+END INTERFACE
+

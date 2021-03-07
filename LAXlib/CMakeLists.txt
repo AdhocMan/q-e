@@ -10,7 +10,8 @@ set(src_lax
     rdiaghg.f90
     transto.f90
     zhpev_drv.f90
-    cdiaghg.f90)
+    cdiaghg.f90
+    update_distmat.f90)
 qe_enable_cuda_fortran("${src_lax}")
 
 qe_add_library(qe_lax ${src_lax})
