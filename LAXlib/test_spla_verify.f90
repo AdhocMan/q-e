@@ -23,14 +23,15 @@ PROGRAM lax_spla
   INTEGER :: i
   INTEGER :: nvec
   INTEGER :: ndiag
-  INTEGER :: repeats
   INTEGER :: ii
   INTEGER :: kdim, kdmx
   COMPLEX(DP) :: alpha, beta
+  REAL(DP) :: randNum
   type(c_ptr) :: matDis, ctx
   INTEGER, PARAMETER :: blocksize = 256
   INTEGER :: nx ! maximum local block dimension
   LOGICAL :: la_proc ! flag to distinguish procs involved in linear algebra
+  LOGICAL :: result_ok
   INTEGER :: idesc(LAX_DESC_SIZE), idesc_old(LAX_DESC_SIZE)
   INTEGER, ALLOCATABLE :: irc_ip( : )
   INTEGER, ALLOCATABLE :: nrc_ip( : )
@@ -39,6 +40,7 @@ PROGRAM lax_spla
   COMPLEX(DP), ALLOCATABLE :: A(:,:)
   COMPLEX(DP), ALLOCATABLE :: B(:,:)
   COMPLEX(DP), ALLOCATABLE :: C(:,:)
+  COMPLEX(DP), ALLOCATABLE :: CRef(:,:)
   integer :: nargs
   CHARACTER(LEN=80) :: arg
 
@@ -66,17 +68,12 @@ PROGRAM lax_spla
   alpha = ONE
   beta = ZERO
 
-  repeats = 20
   nvec = 2000
   kdim = 10
 
   nargs = command_argument_count()
   do i = 1, nargs - 1
     CALL get_command_argument(i, arg)
-    IF (TRIM(arg) == '-r') THEN
-      CALL get_command_argument(i + 1, arg)
-      READ (arg, *) repeats
-    END IF
     IF (TRIM(arg) == '-k') THEN
       CALL get_command_argument(i + 1, arg)
       READ (arg, *) kdim
@@ -90,26 +87,36 @@ PROGRAM lax_spla
 
   kdmx = kdim
 
-  ALLOCATE(  A( kdmx, nvec ), STAT=ierr )
-  ALLOCATE(  B( kdmx, nvec ), STAT=ierr )
-  ALLOCATE(  C( nvec, nvec ), STAT=ierr )
-
-  A = ONE
-  B = 2*ONE
-  C = 3*ONE
-
   ndiag = 0
   CALL laxlib_start_drv(ndiag, MPI_COMM_WORLD, MPI_COMM_WORLD, .false.)
   CALL desc_init( nvec, nx, la_proc, idesc, rank_ip, irc_ip, nrc_ip )
+
+  ALLOCATE(  A( kdmx, nvec ), STAT=ierr )
+  ALLOCATE(  B( kdmx, nvec ), STAT=ierr )
+  ALLOCATE(  C( nx, nx ), STAT=ierr )
+  ALLOCATE(  CRef( nx, nx ), STAT=ierr )
+
+  call random_seed()
+  DO i = 1, nvec
+    DO ii = 1, kdmx
+      CALL random_number(randNum)
+      A(ii, i) = randNum * 10
+      CALL random_number(randNum)
+      B(ii, i) = randNum * 10
+    END DO
+  END DO
+
+  C = 3*ONE
+  CRef = C
+
 
   ierr = spla_ctx_create(ctx, SPLA_PU_HOST)
   ierr = spla_mat_dis_create_block_cyclic(matDis, comm, 'R', idesc(LAX_DESC_NPR), &
             idesc(LAX_DESC_NPC), idesc(LAX_DESC_NRCX), idesc(LAX_DESC_NRCX))
 
-  if( mype == 0 ) then
+  if( mype == 3 ) then
     write(6,*) 'n  = ', nvec
     write(6,*) 'k  = ', kdim
-    write(6,*) 'repeats  = ', repeats
     write(6,*) '=================================='
     write(6,*) 'num. procs  = ', npes
     write(6,*) 'nx = ', nx
@@ -128,47 +135,50 @@ PROGRAM lax_spla
     write(6,*) 'idesc(LAX_DESC_NRCX)= ', idesc(LAX_DESC_NRCX)
     write(6,*) 'idesc(LAX_DESC_NPR)= ', idesc(LAX_DESC_NPR)
     write(6,*) 'idesc(LAX_DESC_NPC)= ', idesc(LAX_DESC_NPC)
+    write(6,*) '==================================\n\n'
   endif
 
-  ! allocate( proc_name( npes ) )
-  ! allocate( node_name( npes ) )
-  ! allocate( proc2node( npes ) )
 
-
-  CALL init_clocks( .true. )
-
-
-  CALL compute_distmat(C, A, B) ! warm up
-  CALL init_clocks( .true. )
-  DO ii = 1, repeats
-    CALL start_clock( 'compute_distmat' )
-    CALL compute_distmat(C, A, B)
-    CALL stop_clock( 'compute_distmat' )
-  END DO
+  CALL compute_distmat(CRef, A, B) ! warm up
 
   ! warm up
   ierr = spla_pzgemm_ssbtr(nvec, nvec, kdim, SPLA_OP_CONJ_TRANSPOSE, alpha, A, &
-                         kdim, B, kdim, beta, C, nvec, 0, 0, SPLA_FILL_MODE_UPPER,&
+                         kdim, B, kdim, beta, C, nx, 0, 0, SPLA_FILL_MODE_UPPER,&
                          matDis, ctx)
-  DO ii = 1, repeats
-    CALL start_clock( 'spla_pzgemm' )
-    ierr = spla_pzgemm_ssbtr(nvec, nvec, kdim, SPLA_OP_CONJ_TRANSPOSE, alpha, A, &
-                           kdim, B, kdim, beta, C, nvec, 0, 0, SPLA_FILL_MODE_UPPER,&
-                           matDis, ctx)
-    CALL stop_clock( 'spla_pzgemm' )
+  CALL laxlib_zsqmher( nvec, C, nx, idesc )
+
+  result_ok = .TRUE.
+
+  DO i = 1, idesc(LAX_DESC_NR)
+    DO ii = 1, idesc(LAX_DESC_NC)
+     if(ABS(C(i, ii) - CRef(i, ii)) .gt. 1.0E-6) then
+        result_ok = .FALSE.
+      endif
+     END DO
   END DO
 
+  ! DO ii = 0, npes - 1
+  !   if( mype == ii ) then
+  !       write(6,*) '==== ', mype , ' ===='
 
-  if( mype == 0 ) then
-    write(6,*)  'compute_distmat' 
-    CALL print_clock( 'compute_distmat' )
-    write(6,*)  'compute matrix blocks' 
-    CALL print_clock( 'compute matrix blocks' )
-    write(6,*)  'sym' 
-    CALL print_clock( 'sym' )
-    write(6,*)  'spla_pzgemm_ssb' 
-    CALL print_clock( 'spla_pzgemm' )
-  endif
+  !       write(6,*) 'C'
+  !       do i =1, idesc(LAX_DESC_NR)
+  !         write(6,*) REAL(C(i,1:idesc(LAX_DESC_NC)))
+  !       enddo
+  !       write(6,*) 'CRef'
+  !       do i =1, idesc(LAX_DESC_NR)
+  !         write(6,*) REAL(CRef(i,1:idesc(LAX_DESC_NC)))
+  !       enddo
+  !   endif
+  !   call MPI_Barrier(comm, ierr)
+  ! END DO
+
+    if( result_ok ) then
+      write(6,*) 'Result ok'
+    else
+      write(6,*) 'Error found'
+    endif
+
 
 #if defined(__MPI)
   CALL mpi_finalize(ierr)

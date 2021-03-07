@@ -106,4 +106,15 @@ if(QE_ENABLE_TEST)
             SPLA::spla
             )
 
+    qe_add_executable(qe_lax_spla_verify test_spla_verify.f90)
+    set_target_properties(qe_lax_spla_verify PROPERTIES OUTPUT_NAME qe_lax_spla_verify.x RUNTIME_OUTPUT_DIRECTORY ${QE_TESTS_DIR})
+    target_link_libraries(qe_lax_spla_verify
+        PRIVATE
+            qe_mpi_fortran
+            qe_lapack
+            qe_utilx
+            qe_lax
+            SPLA::spla
+            )
+
 endif(QE_ENABLE_TEST)
