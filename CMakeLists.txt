@@ -327,10 +327,10 @@ qe_install_targets(qe_spla)
 ###########################################################
 if(QE_ENABLE_SPLA)
   find_package(SPLA CONFIG REQUIRED)
-    target_link_libraries(qe_scalapack
+    target_link_libraries(qe_spla
         INTERFACE
 	    SPLA::spla)
-endif(QE_ENABLE_SCALAPACK)
+endif(QE_ENABLE_SPLA)
 
 
 ###########################################################

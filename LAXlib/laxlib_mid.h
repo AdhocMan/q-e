@@ -78,18 +78,17 @@ END SUBROUTINE
 END INTERFACE
 
 INTERFACE laxlib_compute_distmat
-SUBROUTINE laxlib_compute_distmat_z( dm, alpha, v, ldv, w, ldw,&
-                                     kdim, idesc, irc_ip, nrc_ip,&
-                                     rank_ip, nb1)
+SUBROUTINE laxlib_compute_distmat_z( dm, kdim, alpha, v, ldv, w, ldw,&
+                                     idesc, irc_ip, nrc_ip, rank_ip, nb1)
  IMPLICIT NONE
  INCLUDE 'laxlib_kinds.fh'
- COMPLEX(DP), INTENT(IN) :: alpha
  COMPLEX(DP), INTENT(INOUT) :: dm( :, : )
+ INTEGER, INTENT(IN) :: kdim
+ COMPLEX(DP), INTENT(IN) :: alpha
  COMPLEX(DP), INTENT(IN) :: v(:,:)
  INTEGER, INTENT(IN) :: ldv
  COMPLEX(DP), INTENT(IN) :: w(:,:)
  INTEGER, INTENT(IN) :: ldw
- INTEGER, INTENT(IN)     :: kdim
  INTEGER, INTENT(IN) :: idesc(:)
  INTEGER, INTENT(IN) :: irc_ip( : )
  INTEGER, INTENT(IN) :: nrc_ip( : )

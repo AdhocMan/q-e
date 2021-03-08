@@ -801,18 +801,18 @@ SUBROUTINE pcegterg(h_psi, s_psi, uspp, g_psi, &
   CALL start_clock( 'cegterg:init' )
 
   hl = ZERO
-  CALL laxlib_compute_distmat( hl, alpha, psi, kdmx, hpsi, kdmx, kdim, idesc, irc_ip, &
+  CALL laxlib_compute_distmat( hl, kdim, alpha, psi, kdmx, hpsi, kdmx, idesc, irc_ip, &
                                nrc_ip, rank_ip, 1)
   !
   sl = ZERO
   IF ( uspp ) THEN
      !
-     CALL laxlib_compute_distmat( sl, alpha, psi, kdmx, spsi, kdmx, kdim, idesc, irc_ip, &
+     CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, spsi, kdmx, idesc, irc_ip, &
                                   nrc_ip, rank_ip, 1)
      !
   ELSE
      !
-     CALL laxlib_compute_distmat( sl, alpha, psi, kdmx, psi, kdmx, kdim, idesc, irc_ip, &
+     CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, psi, kdmx, idesc, irc_ip, &
                                   nrc_ip, rank_ip, 1)
      !
   END IF
@@ -953,17 +953,17 @@ SUBROUTINE pcegterg(h_psi, s_psi, uspp, g_psi, &
      END IF
      !
      !
-     CALL laxlib_compute_distmat( hl, alpha, psi, kdmx, hpsi, kdmx, kdim, idesc, irc_ip, &
+     CALL laxlib_compute_distmat( hl, kdim, alpha, psi, kdmx, hpsi, kdmx, idesc, irc_ip, &
                                   nrc_ip, rank_ip, nb1)
      !
      IF ( uspp ) THEN
         !
-        CALL laxlib_compute_distmat( sl, alpha, psi, kdmx, spsi, kdmx, kdim, idesc, irc_ip, &
+        CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, spsi, kdmx, idesc, irc_ip, &
                                      nrc_ip, rank_ip, nb1)
         !
      ELSE
         !
-        CALL laxlib_compute_distmat( sl, alpha, psi, kdmx, psi, kdmx, kdim, idesc, irc_ip, &
+        CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, psi, kdmx, idesc, irc_ip, &
                                      nrc_ip, rank_ip, nb1)
         !
      END IF

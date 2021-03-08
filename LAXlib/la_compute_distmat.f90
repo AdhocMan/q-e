@@ -10,8 +10,8 @@
 #define ZERO ( 0.D0, 0.D0 )
 #define ONE  ( 1.D0, 0.D0 )
 !
-SUBROUTINE laxlib_compute_distmat_z( dm, alpha, v, ldv, w, ldw, kdim, idesc, irc_ip, nrc_ip,&
-                             rank_ip, nb1)
+SUBROUTINE laxlib_compute_distmat_z( dm, kdim, alpha, v, ldv, w, ldw, idesc, &
+                                     irc_ip, nrc_ip, rank_ip, nb1)
  USE laxlib_parallel_include
  USE iso_c_binding
 #if defined __SPLA
@@ -24,13 +24,13 @@ SUBROUTINE laxlib_compute_distmat_z( dm, alpha, v, ldv, w, ldw, kdim, idesc, irc
  INCLUDE 'laxlib_low.fh'
  INCLUDE 'laxlib_param.fh'
  !
- COMPLEX(DP), INTENT(IN) :: alpha
  COMPLEX(DP), INTENT(INOUT) :: dm( :, : )
+ INTEGER, INTENT(IN)     :: kdim
+ COMPLEX(DP), INTENT(IN) :: alpha
  COMPLEX(DP), INTENT(IN) :: v(:,:)
  INTEGER, INTENT(IN) :: ldv
  COMPLEX(DP), INTENT(IN) :: w(:,:)
  INTEGER, INTENT(IN) :: ldw
- INTEGER, INTENT(IN)     :: kdim
  INTEGER, INTENT(IN) :: idesc(:)
  INTEGER, INTENT(IN) :: irc_ip( : )
  INTEGER, INTENT(IN) :: nrc_ip( : )
