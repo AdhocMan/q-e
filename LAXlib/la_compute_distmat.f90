@@ -10,7 +10,7 @@
 #define ZERO ( 0.D0, 0.D0 )
 #define ONE  ( 1.D0, 0.D0 )
 !
-SUBROUTINE update_distmat_c( dm, alpha, v, ldv, w, ldw, kdim, idesc, irc_ip, nrc_ip,&
+SUBROUTINE laxlib_compute_distmat_z( dm, alpha, v, ldv, w, ldw, kdim, idesc, irc_ip, nrc_ip,&
                              rank_ip, nb1)
  USE laxlib_parallel_include
  USE iso_c_binding
@@ -43,23 +43,29 @@ SUBROUTINE update_distmat_c( dm, alpha, v, ldv, w, ldw, kdim, idesc, irc_ip, nrc
  INTEGER :: status_spla
  INTEGER :: ortho_parent_comm
  type(c_ptr) :: mat_dis_spla, ctx_spla
-
+ !
  nx = idesc(LAX_DESC_NRCX)
  CALL laxlib_getval( ortho_parent_comm = ortho_parent_comm, ctx_spla = ctx_spla, &
                      mat_dis_spla = mat_dis_spla )
-
+ !
 #if defined __SPLA
  status_spla = spla_mat_dis_set_row_block_size(mat_dis_spla, idesc(LAX_DESC_NRCX))
+ IF( status_spla /= SPLA_SUCCESS ) &
+   CALL errore( ' laxlib_compute_distmat ',' error when calling SPLA ', ABS(status_spla) )
  status_spla = spla_mat_dis_set_col_block_size(mat_dis_spla, idesc(LAX_DESC_NRCX))
-
+ IF( status_spla /= SPLA_SUCCESS ) &
+   CALL errore( ' laxlib_compute_distmat ',' error when calling SPLA ', ABS(status_spla) )
+ !
  status_spla = spla_pzgemm_ssbtr(idesc(LAX_DESC_N), idesc(LAX_DESC_N) - nb1 + 1, kdim, &
           SPLA_OP_CONJ_TRANSPOSE, alpha, v, ldv, w(:, nb1), ldw, ONE, dm, nx, 0, &
-          nb1-1, SPLA_FILL_MODE_UPPER, mat_dis_spla, ctx_spla)
-
+          nb1 - 1, SPLA_FILL_MODE_UPPER, mat_dis_spla, ctx_spla)
+ IF( status_spla /= SPLA_SUCCESS ) &
+   CALL errore( ' laxlib_compute_distmat ',' error when calling SPLA ', ABS(status_spla) )
+ !
  CALL laxlib_zsqmher( idesc(LAX_DESC_N), dm, nx, idesc )
-
+ !
 #else
-
+ !
  ALLOCATE( vtmp( nx, nx ) )
  !
  vtmp = ZERO
@@ -111,6 +117,6 @@ SUBROUTINE update_distmat_c( dm, alpha, v, ldv, w, ldw, kdim, idesc, irc_ip, nrc
  !
  DEALLOCATE( vtmp )
 #endif
-
+ !
  RETURN
-END SUBROUTINE update_distmat_c
+END SUBROUTINE laxlib_compute_distmat_z

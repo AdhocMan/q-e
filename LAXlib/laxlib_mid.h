@@ -77,9 +77,10 @@ SUBROUTINE laxlib_pdtrtri_x ( sll, ldx, n, idesc )
 END SUBROUTINE
 END INTERFACE
 
-INTERFACE update_distmat_new
-SUBROUTINE update_distmat_c( dm, alpha, v, ldv, w, ldw, kdim, idesc, irc_ip, nrc_ip,&
-                             rank_ip, nb1)
+INTERFACE laxlib_compute_distmat
+SUBROUTINE laxlib_compute_distmat_z( dm, alpha, v, ldv, w, ldw,&
+                                     kdim, idesc, irc_ip, nrc_ip,&
+                                     rank_ip, nb1)
  IMPLICIT NONE
  INCLUDE 'laxlib_kinds.fh'
  COMPLEX(DP), INTENT(IN) :: alpha
