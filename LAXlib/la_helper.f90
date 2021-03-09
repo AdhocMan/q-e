@@ -196,6 +196,7 @@ CONTAINS
   SUBROUTINE init_ortho_group ( nproc_try_in, my_world_comm, comm_all, nparent_comm, my_parent_id )
 #if defined __SPLA
     use spla
+    use iso_c_binding
 #endif
     !
     IMPLICIT NONE
@@ -209,6 +210,7 @@ CONTAINS
 
 #if defined __SPLA
     INTEGER :: status_spla
+    INTEGER :: union_key, ortho_union_comm
 #endif
 
 #if defined __SCALAPACK
@@ -312,8 +314,20 @@ CONTAINS
     if( status_spla /= SPLA_SUCCESS ) &
          CALL lax_error__( " init_ortho_group ", " error creating SPLA context ", ierr )
 
-    status_spla = spla_mat_dis_create_block_cyclic(mat_dis_spla, ortho_parent_comm, 'R', np_ortho(1), &
+    ! Use comm_split to create a single communicator with reordered ranks,
+    ! such that ranks in ortho group are first
+    if( color == 1 ) then
+      union_key = me_all
+    else
+      union_key = me_all + nproc_all
+    endif
+    CALL laxlib_comm_split ( comm_all, 0, union_key, ortho_union_comm )
+
+    status_spla = spla_mat_dis_create_block_cyclic(mat_dis_spla, ortho_union_comm, 'R', np_ortho(1), &
                                                    np_ortho(2), 1, 1)
+    ! SPLA creates a copy of the communicator interally, so this one can be freed
+    CALL laxlib_comm_free( ortho_union_comm )
+
     if( status_spla /= SPLA_SUCCESS ) &
          CALL lax_error__( " init_ortho_group ", " error creating SPLA matrix distribution ", ierr )
 #endif
@@ -324,7 +338,7 @@ CONTAINS
     !  SCALAPACK is now independent from whatever level of parallelization
     !  is present on top of pool parallelization
     !
-    ALLOCATE( ortho_cntx_pe( nparent_comm ) )
+    ALLOCATE( ortho_cntx_pe( nproc_ortho ) )
     ALLOCATE( blacsmap( np_ortho(1), np_ortho(2) ) )
 
     DO j = 1, nparent_comm
