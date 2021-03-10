@@ -150,14 +150,16 @@ PROGRAM lax_spla
   timer_name = "qe"
   ierr = spla_timer_start(len(trim(timer_name)), timer_name)
   DO ii = 1, repeats
+    CALL start_clock( 'compute_distmat' )
     timer_name = "iter"
     ierr = spla_timer_start(len(trim(timer_name)), timer_name)
-    CALL start_clock( 'compute_distmat' )
     CALL compute_distmat(C, A, B)
-    CALL stop_clock( 'compute_distmat' )
     timer_name = "iter"
     ierr = spla_timer_stop(len(trim(timer_name)), timer_name)
+    CALL stop_clock( 'compute_distmat' )
   END DO
+  timer_name = "qe"
+  ierr = spla_timer_stop(len(trim(timer_name)), timer_name)
 
   ! warm up
   ierr = spla_pzgemm_ssbtr(nvec, nvec, kdim, SPLA_OP_CONJ_TRANSPOSE, alpha, A, &
@@ -166,15 +168,15 @@ PROGRAM lax_spla
   timer_name = "spla"
   ierr = spla_timer_start(len(trim(timer_name)), timer_name)
   DO ii = 1, repeats
+    CALL start_clock( 'spla_pzgemm' )
     timer_name = "iter"
     ierr = spla_timer_start(len(trim(timer_name)), timer_name)
-    CALL start_clock( 'spla_pzgemm' )
     ierr = spla_pzgemm_ssbtr(nvec, nvec, kdim, SPLA_OP_CONJ_TRANSPOSE, alpha, A, &
                            kdim, B, kdim, beta, C, nvec, 0, 0, SPLA_FILL_MODE_UPPER,&
                            matDis, ctx)
-    CALL stop_clock( 'spla_pzgemm' )
     timer_name = "iter"
     ierr = spla_timer_stop(len(trim(timer_name)), timer_name)
+    CALL stop_clock( 'spla_pzgemm' )
   END DO
   timer_name = "spla"
   ierr = spla_timer_stop(len(trim(timer_name)), timer_name)
