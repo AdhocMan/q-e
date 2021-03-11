@@ -1299,7 +1299,7 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
            !
         END IF
         !
-        ALL set_h_from_e( )
+        CALL set_h_from_e( )
         !
         CALL set_to_identity( vl, idesc )
         CALL set_to_identity( sl, idesc )
