@@ -827,7 +827,7 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
   INTEGER :: np_ortho(2), ortho_parent_comm
   LOGICAL :: do_distr_diag_inside_bgrp
   !
-  REAL(DP), EXTERNAL :: ddot
+  REAL(DP), EXTERNAL :: KSddot
   !
   EXTERNAL  h_psi_gpu, s_psi_gpu, g_psi_gpu
     ! h_psi(npwx,npw,nvec,psi,hpsi)
