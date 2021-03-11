@@ -97,3 +97,22 @@ SUBROUTINE laxlib_compute_distmat_z( dm, kdim, alpha, v, ldv, w, ldw,&
 END SUBROUTINE
 END INTERFACE
 
+INTERFACE laxlib_compute_distmat_gpu
+SUBROUTINE laxlib_compute_distmat_z_gpu( dm, kdim, alpha, v, ldv, w, ldw,&
+                                     idesc, irc_ip, nrc_ip, rank_ip, nb1)
+ IMPLICIT NONE
+ INCLUDE 'laxlib_kinds.fh'
+ COMPLEX(DP), INTENT(INOUT) :: dm( :, : )
+ INTEGER, INTENT(IN) :: kdim
+ COMPLEX(DP), INTENT(IN) :: alpha
+ COMPLEX(DP), INTENT(IN) :: v(:,:)
+ INTEGER, INTENT(IN) :: ldv
+ COMPLEX(DP), INTENT(IN) :: w(:,:)
+ INTEGER, INTENT(IN) :: ldw
+ INTEGER, INTENT(IN) :: idesc(:)
+ INTEGER, INTENT(IN) :: irc_ip( : )
+ INTEGER, INTENT(IN) :: nrc_ip( : )
+ INTEGER, INTENT(IN) :: rank_ip( :, : )
+ INTEGER, INTENT(IN) :: nb1
+END SUBROUTINE
+END INTERFACE

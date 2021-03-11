@@ -992,19 +992,19 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
   CALL start_clock( 'cegterg:init' )
 
   ! CALL compute_distmat( hl, psi_d, hpsi_d ) 
-  CALL laxlib_compute_distmat( hl, kdim, alpha, psi_d, kdmx, hpsi_d, kdmx, idesc, irc_ip, &
+  CALL laxlib_compute_distmat_gpu( hl, kdim, alpha, psi_d, kdmx, hpsi_d, kdmx, idesc, irc_ip, &
                                nrc_ip, rank_ip, 1)
   !
   IF ( uspp ) THEN
      !
      ! CALL compute_distmat( sl, psi_d, spsi_d ) 
-     CALL laxlib_compute_distmat( sl, kdim, alpha, psi_d, kdmx, spsi_d, kdmx, idesc, irc_ip, &
+     CALL laxlib_compute_distmat_gpu( sl, kdim, alpha, psi_d, kdmx, spsi_d, kdmx, idesc, irc_ip, &
                                   nrc_ip, rank_ip, 1)
      !
   ELSE
      !
      ! CALL compute_distmat( sl, psi_d, psi_d )  
-     CALL laxlib_compute_distmat( sl, kdim, alpha, psi_d, kdmx, psi_d, kdmx, idesc, irc_ip, &
+     CALL laxlib_compute_distmat_gpu( sl, kdim, alpha, psi_d, kdmx, psi_d, kdmx, idesc, irc_ip, &
                                   nrc_ip, rank_ip, 1)
      !
   END IF
@@ -1170,18 +1170,18 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
      !
      !
      ! CALL update_distmat( hl, psi_d, hpsi_d )
-     CALL laxlib_compute_distmat( hl, kdim, alpha, psi_d, kdmx, hpsi_d, kdmx, idesc, irc_ip, &
+     CALL laxlib_compute_distmat_gpu( hl, kdim, alpha, psi_d, kdmx, hpsi_d, kdmx, idesc, irc_ip, &
                                   nrc_ip, rank_ip, nb1)
      !
      IF ( uspp ) THEN
         !
         ! CALL update_distmat( sl, psi_d, spsi_d )
-        CALL laxlib_compute_distmat( sl, kdim, alpha, psi_d, kdmx, spsi_d, kdmx, idesc, irc_ip, &
+        CALL laxlib_compute_distmat_gpu( sl, kdim, alpha, psi_d, kdmx, spsi_d, kdmx, idesc, irc_ip, &
                                      nrc_ip, rank_ip, nb1)
         !
      ELSE
         !
-        CALL laxlib_compute_distmat( sl, kdim, alpha, psi_d, kdmx, psi_d, kdmx, idesc, irc_ip, &
+        CALL laxlib_compute_distmat_gpu( sl, kdim, alpha, psi_d, kdmx, psi_d, kdmx, idesc, irc_ip, &
                                      nrc_ip, rank_ip, nb1)
         ! CALL update_distmat( sl, psi_d, psi_d )
         !
