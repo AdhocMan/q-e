@@ -1162,6 +1162,8 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
      ierr = spla_timer_stop(len(trim(timer_name)), c_loc(timer_name(1)))
      !
      !
+     psi_d = psi
+     hpsi_d = hpsi
      timer_name = 'compute_distmat_gpu'
      ierr = spla_timer_start(len(trim(timer_name)), c_loc(timer_name(1)))
      ! CALL update_distmat( hl, psi, hpsi )
