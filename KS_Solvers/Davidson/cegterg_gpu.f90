@@ -826,6 +826,8 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
   !
   INTEGER :: np_ortho(2), ortho_parent_comm
   LOGICAL :: do_distr_diag_inside_bgrp
+  Character(len = 80) :: timer_name
+  INTEGER :: mype
   !
   REAL(DP), EXTERNAL :: ddot
   REAL(DP), EXTERNAL :: KSddot
@@ -992,6 +994,8 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
   !
   CALL start_clock( 'cegterg:init' )
 
+  timer_name = 'compute_distmat_original'
+  ierr = spla_timer_start(len(trim(timer_name)), c_loc(timer_name(1)))
   CALL compute_distmat( hl, psi, hpsi ) 
   !
   IF ( uspp ) THEN
@@ -1003,6 +1007,7 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
      CALL compute_distmat( sl, psi, psi )  
      !
   END IF
+  ierr = spla_timer_stop(len(trim(timer_name)), c_loc(timer_name(1)))
   CALL stop_clock( 'cegterg:init' )
   !
   IF ( lrot ) THEN
@@ -1066,6 +1071,8 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
      !
      ! ...         ew = <psi_i|psi_i>,  i = nbase + 1, nbase + notcnv
      !
+     timer_name = 'ddot'
+     ierr = spla_timer_start(len(trim(timer_name)), c_loc(timer_name(1)))
      DO n = 1, notcnv
         !
         nbn = nbase + n
@@ -1084,7 +1091,10 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
      END DO
      !
      CALL mp_sum( ew( 1:notcnv ), intra_bgrp_comm )
+     ierr = spla_timer_stop(len(trim(timer_name)), c_loc(timer_name(1)))
      !
+     timer_name = 'psi_scale_with_ew'
+     ierr = spla_timer_start(len(trim(timer_name)), c_loc(timer_name(1)))
      !$omp parallel do collapse(3)
      DO n = 1, notcnv
         DO ipol = 1, npol
@@ -1098,6 +1108,7 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
         END DO
      END DO
      !$omp end parallel do
+     ierr = spla_timer_stop(len(trim(timer_name)), c_loc(timer_name(1)))
      !
      ! ... here compute the hpsi and spsi of the new functions
      !
@@ -1120,6 +1131,8 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
      !
      CALL desc_init( nbase+notcnv, nx, la_proc, idesc, rank_ip, irc_ip, nrc_ip )
      !
+     timer_name = 'redistribute'
+     ierr = spla_timer_start(len(trim(timer_name)), c_loc(timer_name(1)))
      IF( la_proc ) THEN
 
         !  redistribute hl and sl (see dsqmred), since the dimension of the subspace has changed
@@ -1146,8 +1159,11 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
            CALL errore( ' pcegterg ',' cannot allocate vl ', ABS(ierr) )
 
      END IF
+     ierr = spla_timer_stop(len(trim(timer_name)), c_loc(timer_name(1)))
      !
      !
+     timer_name = 'compute_distmat_gpu'
+     ierr = spla_timer_start(len(trim(timer_name)), c_loc(timer_name(1)))
      ! CALL update_distmat( hl, psi, hpsi )
      CALL laxlib_compute_distmat_gpu( hl, kdim, alpha, psi_d, kdmx, hpsi_d, kdmx, idesc, irc_ip, &
                                   nrc_ip, rank_ip, nb1)
@@ -1165,6 +1181,7 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
         ! CALL update_distmat( sl, psi, psi )
         !
      END IF
+     ierr = spla_timer_stop(len(trim(timer_name)), c_loc(timer_name(1)))
      !
      CALL stop_clock( 'cegterg:overlap' )
      !
@@ -1215,7 +1232,10 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
         !
         CALL start_clock( 'cegterg:last' )
         !
+     timer_name = 'refresh_evc'
+     ierr = spla_timer_start(len(trim(timer_name)), c_loc(timer_name(1)))
         CALL refresh_evc()
+     ierr = spla_timer_stop(len(trim(timer_name)), c_loc(timer_name(1)))
         evc_d = evc       
         !
         IF ( notcnv == 0 ) THEN
@@ -1245,11 +1265,17 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
         !
         IF ( uspp ) THEN
            !
+     timer_name = 'refresh_spsi'
+     ierr = spla_timer_start(len(trim(timer_name)), c_loc(timer_name(1)))
            CALL refresh_spsi()
+     ierr = spla_timer_stop(len(trim(timer_name)), c_loc(timer_name(1)))
            ! 
         END IF
         !
+     timer_name = 'refresh_hpsi'
+     ierr = spla_timer_start(len(trim(timer_name)), c_loc(timer_name(1)))
         CALL refresh_hpsi()
+     ierr = spla_timer_stop(len(trim(timer_name)), c_loc(timer_name(1)))
         !
         ! ... refresh the reduced hamiltonian
         !
@@ -1275,16 +1301,27 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
            !
         END IF
         !
+     timer_name = 'set_h_from_e'
+     ierr = spla_timer_start(len(trim(timer_name)), c_loc(timer_name(1)))
         CALL set_h_from_e( )
+     ierr = spla_timer_stop(len(trim(timer_name)), c_loc(timer_name(1)))
         !
+     timer_name = 'set_to_identity'
+     ierr = spla_timer_start(len(trim(timer_name)), c_loc(timer_name(1)))
         CALL set_to_identity( vl, idesc )
         CALL set_to_identity( sl, idesc )
+     ierr = spla_timer_stop(len(trim(timer_name)), c_loc(timer_name(1)))
         !
         CALL stop_clock( 'cegterg:last' )
         !
      END IF
      !
   END DO iterate
+
+   CALL MPI_Comm_rank(MPI_COMM_WORLD, mype, ierr)
+  if( mype == 0)
+     ierr = spla_timer_print()
+  end if
   !
   DEALLOCATE( vl, hl, sl )
   !
