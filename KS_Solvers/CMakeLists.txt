@@ -63,6 +63,12 @@ target_link_libraries(qe_kssolver_davidson
         qe_utilx
         qe_mpi_fortran
         qe_devxlib)
+if(QE_ENABLE_SPLA)
+target_link_libraries(qe_kssolver_davidson
+    PRIVATE
+        qe_spla
+        )
+endif()
 
 qe_add_library(qe_kssolver_davidsonrci ${src_davidson_rci})
 target_link_libraries(qe_kssolver_davidsonrci
