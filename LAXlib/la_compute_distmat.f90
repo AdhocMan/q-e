@@ -60,7 +60,7 @@ SUBROUTINE laxlib_compute_distmat_z( dm, kdim, alpha, v, ldv, w, ldw, idesc, &
  !          SPLA_OP_CONJ_TRANSPOSE, alpha, v, ldv, w(:, nb1), ldw, ONE, dm, nx, 0, &
  !          nb1 - 1, SPLA_FILL_MODE_UPPER, mat_dis_spla, ctx_spla)
  status_spla = spla_pzgemm_ssbtr(idesc(LAX_DESC_N), idesc(LAX_DESC_N) - nb1 + 1, kdim, &
-          SPLA_OP_CONJ_TRANSPOSE, alpha, c_loc(v_d(1,1)), ldv, c_loc(w_d(1, nb1)), ldw,&
+          SPLA_OP_CONJ_TRANSPOSE, alpha, c_loc(v(1,1)), ldv, c_loc(w(1, nb1)), ldw,&
           ONE, c_loc(dm(1,1)), nx, 0, nb1 - 1, SPLA_FILL_MODE_UPPER, mat_dis_spla, ctx_spla)
  IF( status_spla /= SPLA_SUCCESS ) &
    CALL errore( ' laxlib_compute_distmat ',' error when calling SPLA ', ABS(status_spla) )
