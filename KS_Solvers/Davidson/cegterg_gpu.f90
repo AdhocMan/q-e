@@ -819,14 +819,13 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
     ! maximum local block dimension
   LOGICAL :: la_proc
     ! flag to distinguish procs involved in linear algebra
-  COMPLEX(DP) :: alpha
-    ! scaling of distribute mat computation
   INTEGER, ALLOCATABLE :: notcnv_ip( : )
   INTEGER, ALLOCATABLE :: ic_notcnv( : )
   !
   INTEGER :: np_ortho(2), ortho_parent_comm
   LOGICAL :: do_distr_diag_inside_bgrp
   !
+  REAL(DP), EXTERNAL :: ddot
   REAL(DP), EXTERNAL :: KSddot
   !
   EXTERNAL  h_psi_gpu, s_psi_gpu, g_psi_gpu
@@ -956,11 +955,6 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
   notcnv = nvec
   nbase  = nvec
   conv   = .FALSE.
-  IF (ortho_parent_comm.ne.intra_bgrp_comm .and. nbgrp > 1) THEN
-    alpha = CMPLX( 1.D0/nbgrp, 0.D0 )
-  ELSE
-    alpha = ONE
-  ENDIF
   !
   IF ( uspp ) spsi = ZERO
   !
@@ -972,17 +966,17 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
   CALL buffer%lock_buffer(ew_d, nvecx, ierr)
   
   
-  ! evc(:,1:nvec) = evc_d(:,1:nvec)
-  ! psi(:,1:nvec) = evc(:,1:nvec)
+  evc(:,1:nvec) = evc_d(:,1:nvec)
+  psi(:,1:nvec) = evc(:,1:nvec)
   CALL dev_memcpy(psi_d, evc_d, (/1, npwx*npol /), 1 , (/ 1, nvec /) )
   !
   ! ... hpsi contains h times the basis vectors
   !
   CALL h_psi_gpu( npwx, npw, nvec, psi_d, hpsi_d ) ; nhpsi = nhpsi + nvec
-  ! hpsi(1:npwx*npol, 1:nvec) = hpsi_d(1:npwx*npol, 1:nvec)
+  hpsi(1:npwx*npol, 1:nvec) = hpsi_d(1:npwx*npol, 1:nvec)
   !
   IF ( uspp ) CALL s_psi_gpu( npwx, npw, nvec, psi_d, spsi_d )
-  ! IF ( uspp ) spsi(1:npwx*npol, 1:nvec) = spsi_d(1:npwx*npol, 1:nvec)
+  IF ( uspp ) spsi(1:npwx*npol, 1:nvec) = spsi_d(1:npwx*npol, 1:nvec)
   !
   ! ... hl contains the projection of the hamiltonian onto the reduced
   ! ... space, vl contains the eigenvectors of hl. Remember hl, vl and sl
@@ -991,21 +985,15 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
   !
   CALL start_clock( 'cegterg:init' )
 
-  ! CALL compute_distmat( hl, psi_d, hpsi_d ) 
-  CALL laxlib_compute_distmat_gpu( hl, kdim, alpha, psi_d, kdmx, hpsi_d, kdmx, idesc, irc_ip, &
-                               nrc_ip, rank_ip, 1)
+  CALL compute_distmat( hl, psi, hpsi ) 
   !
   IF ( uspp ) THEN
      !
-     ! CALL compute_distmat( sl, psi_d, spsi_d ) 
-     CALL laxlib_compute_distmat_gpu( sl, kdim, alpha, psi_d, kdmx, spsi_d, kdmx, idesc, irc_ip, &
-                                  nrc_ip, rank_ip, 1)
+     CALL compute_distmat( sl, psi, spsi ) 
      !
   ELSE
      !
-     ! CALL compute_distmat( sl, psi_d, psi_d )  
-     CALL laxlib_compute_distmat_gpu( sl, kdim, alpha, psi_d, kdmx, psi_d, kdmx, idesc, irc_ip, &
-                                  nrc_ip, rank_ip, 1)
+     CALL compute_distmat( sl, psi, psi )  
      !
   END IF
   CALL stop_clock( 'cegterg:init' )
@@ -1060,10 +1048,10 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
      !
      ! ... approximate inverse iteration
      !
-     ! ew_d = ew
-     ! psi_d(1:npwx*npol, nb1:nb1+notcnv) = psi(1:npwx*npol, nb1:nb1+notcnv)
+     ew_d = ew
+     psi_d(1:npwx*npol, nb1:nb1+notcnv - 1) = psi(1:npwx*npol, nb1:nb1+notcnv - 1)
      CALL g_psi_gpu( npwx, npw, notcnv, npol, psi_d(1,nb1), ew_d(nb1) )
-     ! psi(1:npwx*npol, nb1:nb1+notcnv) = psi_d(1:npwx*npol, nb1:nb1+notcnv)
+     psi(1:npwx*npol, nb1:nb1+notcnv - 1) = psi_d(1:npwx*npol, nb1:nb1+notcnv - 1)
      !
      ! ... "normalize" correction vectors psi(:,nb1:nbase+notcnv) in 
      ! ... order to improve numerical stability of subspace diagonalization 
@@ -1077,57 +1065,41 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
         !
         IF ( npol == 1 ) THEN
            !
-           ew(n) = KSDdot( 2*npw, psi_d(1,nbn), 1, psi_d(1,nbn), 1 )
+           ew(n) = ddot( 2*npw, psi(1,nbn), 1, psi(1,nbn), 1 )
            !
         ELSE
            !
-           ew(n) = KSDdot( 2*npw, psi_d(1,nbn), 1, psi_d(1,nbn), 1 ) + &
-                        KSDdot( 2*npw, psi_d(npwx+1,nbn), 1, psi_d(npwx+1,nbn), 1 )
+           ew(n) = ddot( 2*npw, psi(1,nbn), 1, psi(1,nbn), 1 ) + &
+                   ddot( 2*npw, psi(npwx+1,nbn), 1, psi(npwx+1,nbn), 1 )
            !
         END IF
         !
      END DO
-     ! DO n = 1, notcnv
-     !    !
-     !    nbn = nbase + n
-     !    !
-     !    IF ( npol == 1 ) THEN
-     !       !
-     !       ew(n) = ddot( 2*npw, psi(1,nbn), 1, psi(1,nbn), 1 )
-     !       !
-     !    ELSE
-     !       !
-     !       ew(n) = ddot( 2*npw, psi(1,nbn), 1, psi(1,nbn), 1 ) + &
-     !               ddot( 2*npw, psi(npwx+1,nbn), 1, psi(npwx+1,nbn), 1 )
-     !       !
-     !    END IF
-     !    !
-     ! END DO
      !
      CALL mp_sum( ew( 1:notcnv ), intra_bgrp_comm )
-     ew_d(1:notcnv) = ew(1:notcnv)
      !
-!$cuf kernel do(3) <<<*,*>>>
+     !$omp parallel do collapse(3)
      DO n = 1, notcnv
         DO ipol = 1, npol
            DO m = 1, numblock
-              psi_d( (m-1)*blocksize+(ipol-1)*npwx+1: &
+              psi( (m-1)*blocksize+(ipol-1)*npwx+1: &
                     MIN(npw, m*blocksize)+(ipol-1)*npwx,nbase+n) = &
-              psi_d( (m-1)*blocksize+(ipol-1)*npwx+1: &
+              psi( (m-1)*blocksize+(ipol-1)*npwx+1: &
                     MIN(npw, m*blocksize)+(ipol-1)*npwx,nbase+n) / &
-                    SQRT( ew_d(n) )
+                    SQRT( ew(n) )
            END DO
         END DO
      END DO
+     !$omp end parallel do
      !
      ! ... here compute the hpsi and spsi of the new functions
      !
-     ! psi_d(1:npwx*npol, nb1:nb1+notcnv) = psi(1:npwx*npol, nb1:nb1+notcnv)
+     psi_d(1:npwx*npol, nb1:nb1+notcnv - 1) = psi(1:npwx*npol, nb1:nb1+notcnv - 1)
      CALL h_psi_gpu( npwx, npw, notcnv, psi_d(1,nb1), hpsi_d(1,nb1) ) ; nhpsi = nhpsi + notcnv
-     ! hpsi(1:npwx*npol, nb1:nb1+notcnv) = hpsi_d(1:npwx*npol, nb1:nb1+notcnv)
+     hpsi(1:npwx*npol, nb1:nb1+notcnv - 1) = hpsi_d(1:npwx*npol, nb1:nb1+notcnv - 1)
      !
      IF ( uspp ) CALL s_psi_gpu( npwx, npw, notcnv, psi_d(1,nb1), spsi_d(1,nb1) )
-     ! IF ( uspp ) spsi = spsi_d
+     IF ( uspp ) spsi = spsi_d
      !
      ! ... update the reduced hamiltonian
      !
@@ -1169,21 +1141,15 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
      END IF
      !
      !
-     ! CALL update_distmat( hl, psi_d, hpsi_d )
-     CALL laxlib_compute_distmat_gpu( hl, kdim, alpha, psi_d, kdmx, hpsi_d, kdmx, idesc, irc_ip, &
-                                  nrc_ip, rank_ip, nb1)
+     CALL update_distmat( hl, psi, hpsi )
      !
      IF ( uspp ) THEN
         !
-        ! CALL update_distmat( sl, psi_d, spsi_d )
-        CALL laxlib_compute_distmat_gpu( sl, kdim, alpha, psi_d, kdmx, spsi_d, kdmx, idesc, irc_ip, &
-                                     nrc_ip, rank_ip, nb1)
+        CALL update_distmat( sl, psi, spsi )
         !
      ELSE
         !
-        CALL laxlib_compute_distmat_gpu( sl, kdim, alpha, psi_d, kdmx, psi_d, kdmx, idesc, irc_ip, &
-                                     nrc_ip, rank_ip, nb1)
-        ! CALL update_distmat( sl, psi_d, psi_d )
+        CALL update_distmat( sl, psi, psi )
         !
      END IF
      !
@@ -1195,7 +1161,6 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
      !     Call block parallel algorithm
      !
      CALL start_clock( 'cegterg:diag' )
-     ! ew(1:nvec) = ew_d(1:nvec)
      IF ( do_distr_diag_inside_bgrp ) THEN ! NB on output of pdiaghg ew and vl are the same across ortho_parent_comm
         ! only the first bgrp performs the diagonalization
         IF( my_bgrp_id == root_bgrp_id ) CALL pdiaghg( nbase, hl, sl, nx, ew, vl, idesc )
@@ -1238,7 +1203,7 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
         CALL start_clock( 'cegterg:last' )
         !
         CALL refresh_evc()
-        ! evc_d = evc       
+        evc_d = evc       
         !
         IF ( notcnv == 0 ) THEN
            !
@@ -1263,9 +1228,7 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
         !
         ! ... refresh psi, H*psi and S*psi
         !
-        ! CALL threaded_memcpy(psi, evc, nvec*npol*npwx*2)
-        CALL dev_memcpy(psi_d, evc_d, (/ 1 , npwx*npol /), 1, &
-                                      (/ 1 , nvec /), 1)
+        CALL threaded_memcpy(psi, evc, nvec*npol*npwx*2)
         !
         IF ( uspp ) THEN
            !
@@ -1424,14 +1387,11 @@ CONTAINS
      INTEGER :: ipc, ipr
      INTEGER :: nr, ir, ic, notcl, root, np, ipol, ib
      COMPLEX(DP), ALLOCATABLE :: vtmp( :, : )
-     COMPLEX(DP), ALLOCATABLE :: ptmp_d( :, : )
+     COMPLEX(DP), ALLOCATABLE :: ptmp( :, : )
      COMPLEX(DP) :: beta
-#if defined(__CUDA)
-  attributes(DEVICE) :: ptmp_d
-#endif
 
      ALLOCATE( vtmp( nx, nx ) )
-     ALLOCATE( ptmp_d( npwx*npol, nx ) )
+     ALLOCATE( ptmp( npwx*npol, nx ) )
 
      DO ipc = 1, idesc(LAX_DESC_NPC)
         !
@@ -1458,48 +1418,49 @@ CONTAINS
               IF ( uspp ) THEN
                  !
                  CALL ZGEMM( 'N', 'N', kdim, notcl, nr, ONE, &
-                    spsi_d(1, ir), kdmx, vtmp, nx, beta, psi_d(1,nb1+ic-1), kdmx )
+                    spsi(1, ir), kdmx, vtmp, nx, beta, psi(1,nb1+ic-1), kdmx )
                  !
               ELSE
                  !
                  CALL ZGEMM( 'N', 'N', kdim, notcl, nr, ONE, &
-                    psi_d(1, ir), kdmx, vtmp, nx, beta, psi_d(1,nb1+ic-1), kdmx )
+                    psi(1, ir), kdmx, vtmp, nx, beta, psi(1,nb1+ic-1), kdmx )
                  !
               END IF
               !
               CALL ZGEMM( 'N', 'N', kdim, notcl, nr, ONE, &
-                      hpsi_d(1, ir), kdmx, vtmp, nx, beta, ptmp_d, kdmx )
+                      hpsi(1, ir), kdmx, vtmp, nx, beta, ptmp, kdmx )
 
               beta = ONE
 
            END DO
 
-           !$cuf kernel do(3) <<<*,*>>>
+           !$omp parallel do collapse(3)
            DO np = 1, notcl
               DO ipol = 1, npol
                  DO ib = 1, numblock
                     !
-                    psi_d( (ib-1)*blocksize+(ipol-1)*npwx+1: &
+                    psi( (ib-1)*blocksize+(ipol-1)*npwx+1: &
                          MIN(npw, ib*blocksize)+(ipol-1)*npwx,nbase+np+ic-1) = &
-                    ptmp_d((ib-1)*blocksize+(ipol-1)*npwx+1: &
+                    ptmp((ib-1)*blocksize+(ipol-1)*npwx+1: &
                          MIN(npw, ib*blocksize)+(ipol-1)*npwx,np) - &
-                    ew_d(nbase+np+ic-1) * psi_d((ib-1)*blocksize+(ipol-1)*npwx+1:&
+                    ew(nbase+np+ic-1) * psi((ib-1)*blocksize+(ipol-1)*npwx+1:&
                        MIN(npw, ib*blocksize)+(ipol-1)*npwx,nbase+np+ic-1)
                     !
                  END DO
               END DO
            END DO
+           !$omp end parallel do
            !
            ! clean up garbage if there is any
-           IF (npw < npwx) psi_d(npw+1:npwx,nbase+ic:nbase+notcl+ic-1) = ZERO
-           IF (npol == 2)  psi_d(npwx+npw+1:2*npwx,nbase+ic:nbase+notcl+ic-1) = ZERO
+           IF (npw < npwx) psi(npw+1:npwx,nbase+ic:nbase+notcl+ic-1) = ZERO
+           IF (npol == 2)  psi(npwx+npw+1:2*npwx,nbase+ic:nbase+notcl+ic-1) = ZERO
            !
         END IF
         !
      END DO
 
      DEALLOCATE( vtmp )
-     DEALLOCATE( ptmp_d )
+     DEALLOCATE( ptmp )
 
      RETURN
   END SUBROUTINE hpsi_dot_v
@@ -1538,14 +1499,14 @@ CONTAINS
                  ! 
                  CALL mp_bcast( vl(:,1:nc), root, ortho_parent_comm )
                  CALL ZGEMM( 'N', 'N', kdim, nc, nr, ONE, &
-                          psi_d(1,ir), kdmx, vl, nx, beta, evc_d(1,ic), kdmx )
+                          psi(1,ir), kdmx, vl, nx, beta, evc(1,ic), kdmx )
               ELSE
                  !
                  !  all other procs receive
                  ! 
                  CALL mp_bcast( vtmp(:,1:nc), root, ortho_parent_comm )
                  CALL ZGEMM( 'N', 'N', kdim, nc, nr, ONE, &
-                          psi_d(1,ir), kdmx, vtmp, nx, beta, evc_d(1,ic), kdmx )
+                          psi(1,ir), kdmx, vtmp, nx, beta, evc(1,ic), kdmx )
               END IF
               ! 
 
@@ -1596,14 +1557,14 @@ CONTAINS
                  ! 
                  CALL mp_bcast( vl(:,1:nc), root, ortho_parent_comm )
                  CALL ZGEMM( 'N', 'N', kdim, nc, nr, ONE, &
-                          spsi_d(1,ir), kdmx, vl, nx, beta, psi_d(1,nvec+ic), kdmx )
+                          spsi(1,ir), kdmx, vl, nx, beta, psi(1,nvec+ic), kdmx )
               ELSE
                  !
                  !  all other procs receive
                  ! 
                  CALL mp_bcast( vtmp(:,1:nc), root, ortho_parent_comm )
                  CALL ZGEMM( 'N', 'N', kdim, nc, nr, ONE, &
-                          spsi_d(1,ir), kdmx, vtmp, nx, beta, psi_d(1,nvec+ic), kdmx )
+                          spsi(1,ir), kdmx, vtmp, nx, beta, psi(1,nvec+ic), kdmx )
               END IF
               ! 
               beta = ONE
@@ -1656,14 +1617,14 @@ CONTAINS
                  ! 
                  CALL mp_bcast( vl(:,1:nc), root, ortho_parent_comm )
                  CALL ZGEMM( 'N', 'N', kdim, nc, nr, ONE, &
-                          hpsi_d(1,ir), kdmx, vl, nx, beta, psi_d(1,nvec+ic), kdmx )
+                          hpsi(1,ir), kdmx, vl, nx, beta, psi(1,nvec+ic), kdmx )
               ELSE
                  !
                  !  all other procs receive
                  ! 
                  CALL mp_bcast( vtmp(:,1:nc), root, ortho_parent_comm )
                  CALL ZGEMM( 'N', 'N', kdim, nc, nr, ONE, &
-                          hpsi_d(1,ir), kdmx, vtmp, nx, beta, psi_d(1,nvec+ic), kdmx )
+                          hpsi(1,ir), kdmx, vtmp, nx, beta, psi(1,nvec+ic), kdmx )
               END IF
               ! 
               beta = ONE
