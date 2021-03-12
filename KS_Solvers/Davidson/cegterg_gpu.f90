@@ -736,6 +736,7 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
   USE device_memcpy_m,    ONLY : dev_memcpy, dev_memset, dev_memcpy
   !
   use spla ! TODO remove
+  use iso_c_binding ! TODO remove
   IMPLICIT NONE
   !
   include 'laxlib.fh'
@@ -827,7 +828,7 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
   !
   INTEGER :: np_ortho(2), ortho_parent_comm
   LOGICAL :: do_distr_diag_inside_bgrp
-  CHARACTER(len = 80) :: timer_name
+  CHARACTER(len = 80), target :: timer_name
   INTEGER :: mype
   !
   REAL(DP), EXTERNAL :: ddot
