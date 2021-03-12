@@ -1321,7 +1321,7 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
   END DO iterate
 
    CALL MPI_Comm_rank(MPI_COMM_WORLD, mype, ierr)
-  if( mype == 0)
+  if( mype == 0) then
      ierr = spla_timer_print()
   end if
   !
