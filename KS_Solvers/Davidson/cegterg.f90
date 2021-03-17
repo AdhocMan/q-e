@@ -1016,7 +1016,9 @@ SUBROUTINE pcegterg(h_psi, s_psi, uspp, g_psi, &
         !
         CALL start_clock( 'cegterg:last' )
         !
-        CALL refresh_evc()       
+        call laxlib_distmat_refresh(kdim, nvec, idesc(LAX_DESC_N), ONE, psi, kdmx, vl, &
+                                    idesc, ZERO, evc, kdmx, irc_ip, &
+                                    nrc_ip, rank_ip )
         !
         IF ( notcnv == 0 ) THEN
            !
@@ -1045,11 +1047,17 @@ SUBROUTINE pcegterg(h_psi, s_psi, uspp, g_psi, &
         !
         IF ( uspp ) THEN
            !
-           CALL refresh_spsi()
+           call laxlib_distmat_refresh(kdim, nvec, idesc(LAX_DESC_N), ONE, spsi, kdmx, vl, &
+                                       idesc, ZERO, psi(:,nvec+1:2*nvec), &
+                                       kdmx, irc_ip, nrc_ip, rank_ip )
+           CALL threaded_memcpy(spsi, psi(1,nvec+1), nvec*npol*npwx*2)
            ! 
         END IF
         !
-        CALL refresh_hpsi()
+        call laxlib_distmat_refresh(kdim, nvec, idesc(LAX_DESC_N), ONE, hpsi, kdmx, vl, &
+                                    idesc, ZERO, psi(:,nvec+1:2*nvec), &
+                                    kdmx, irc_ip, nrc_ip, rank_ip )
+        CALL threaded_memcpy(hpsi, psi(1,nvec+1), nvec*npol*npwx*2)
         !
         ! ... refresh the reduced hamiltonian
         !
@@ -1270,183 +1278,6 @@ CONTAINS
 
      RETURN
   END SUBROUTINE hpsi_dot_v
-  !
-  !
-  SUBROUTINE refresh_evc( )
-     !
-     INTEGER :: ipc, ipr
-     INTEGER :: nr, nc, ir, ic, root
-     COMPLEX(DP), ALLOCATABLE :: vtmp( :, : )
-     COMPLEX(DP) :: beta
-
-     ALLOCATE( vtmp( nx, nx ) )
-     !
-     DO ipc = 1, idesc(LAX_DESC_NPC)
-        !
-        nc = nrc_ip( ipc )
-        ic = irc_ip( ipc )
-        !
-        IF( ic <= nvec ) THEN
-           !
-           nc = min( nc, nvec - ic + 1 )
-           !
-           beta = ZERO
-
-           DO ipr = 1, idesc(LAX_DESC_NPR)
-              !
-              nr = nrc_ip( ipr )
-              ir = irc_ip( ipr )
-              !
-              root = rank_ip( ipr, ipc )
-
-              IF( ipr-1 == idesc(LAX_DESC_MYR) .AND. ipc-1 == idesc(LAX_DESC_MYC) .AND. la_proc ) THEN
-                 !
-                 !  this proc sends his block
-                 ! 
-                 CALL mp_bcast( vl(:,1:nc), root, ortho_parent_comm )
-                 CALL ZGEMM( 'N', 'N', kdim, nc, nr, ONE, &
-                          psi(1,ir), kdmx, vl, nx, beta, evc(1,ic), kdmx )
-              ELSE
-                 !
-                 !  all other procs receive
-                 ! 
-                 CALL mp_bcast( vtmp(:,1:nc), root, ortho_parent_comm )
-                 CALL ZGEMM( 'N', 'N', kdim, nc, nr, ONE, &
-                          psi(1,ir), kdmx, vtmp, nx, beta, evc(1,ic), kdmx )
-              END IF
-              ! 
-
-              beta = ONE
-
-           END DO
-           !
-        END IF
-        !
-     END DO
-     !
-     DEALLOCATE( vtmp )
-
-     RETURN
-  END SUBROUTINE refresh_evc
-  !
-  !
-  SUBROUTINE refresh_spsi( )
-     !
-     INTEGER :: ipc, ipr
-     INTEGER :: nr, nc, ir, ic, root
-     COMPLEX(DP), ALLOCATABLE :: vtmp( :, : )
-     COMPLEX(DP) :: beta
-
-     ALLOCATE( vtmp( nx, nx ) )
-     !
-     DO ipc = 1, idesc(LAX_DESC_NPC)
-        !
-        nc = nrc_ip( ipc )
-        ic = irc_ip( ipc )
-        !
-        IF( ic <= nvec ) THEN
-           !
-           nc = min( nc, nvec - ic + 1 )
-           !
-           beta = ZERO
-           !
-           DO ipr = 1, idesc(LAX_DESC_NPR)
-              !
-              nr = nrc_ip( ipr )
-              ir = irc_ip( ipr )
-              !
-              root = rank_ip( ipr, ipc )
-
-              IF( ipr-1 == idesc(LAX_DESC_MYR) .AND. ipc-1 == idesc(LAX_DESC_MYC) .AND. la_proc ) THEN
-                 !
-                 !  this proc sends his block
-                 ! 
-                 CALL mp_bcast( vl(:,1:nc), root, ortho_parent_comm )
-                 CALL ZGEMM( 'N', 'N', kdim, nc, nr, ONE, &
-                          spsi(1,ir), kdmx, vl, nx, beta, psi(1,nvec+ic), kdmx )
-              ELSE
-                 !
-                 !  all other procs receive
-                 ! 
-                 CALL mp_bcast( vtmp(:,1:nc), root, ortho_parent_comm )
-                 CALL ZGEMM( 'N', 'N', kdim, nc, nr, ONE, &
-                          spsi(1,ir), kdmx, vtmp, nx, beta, psi(1,nvec+ic), kdmx )
-              END IF
-              ! 
-              beta = ONE
-
-           END DO
-           !
-        END IF
-        !
-     END DO
-     !
-     CALL threaded_memcpy(spsi, psi(1,nvec+1), nvec*npol*npwx*2)
-     !
-     DEALLOCATE( vtmp )
-
-     RETURN
-  END SUBROUTINE refresh_spsi
-  !
-  !
-  !
-  SUBROUTINE refresh_hpsi( )
-     !
-     INTEGER :: ipc, ipr
-     INTEGER :: nr, nc, ir, ic, root
-     COMPLEX(DP), ALLOCATABLE :: vtmp( :, : )
-     COMPLEX(DP) :: beta
-
-     ALLOCATE( vtmp( nx, nx ) )
-     !
-     DO ipc = 1, idesc(LAX_DESC_NPC)
-        !
-        nc = nrc_ip( ipc )
-        ic = irc_ip( ipc )
-        !
-        IF( ic <= nvec ) THEN
-           !
-           nc = min( nc, nvec - ic + 1 )
-           !
-           beta = ZERO
-           !
-           DO ipr = 1, idesc(LAX_DESC_NPR)
-              !
-              nr = nrc_ip( ipr )
-              ir = irc_ip( ipr )
-              !
-              root = rank_ip( ipr, ipc )
-
-              IF( ipr-1 == idesc(LAX_DESC_MYR) .AND. ipc-1 == idesc(LAX_DESC_MYC) .AND. la_proc ) THEN
-                 !
-                 !  this proc sends his block
-                 ! 
-                 CALL mp_bcast( vl(:,1:nc), root, ortho_parent_comm )
-                 CALL ZGEMM( 'N', 'N', kdim, nc, nr, ONE, &
-                          hpsi(1,ir), kdmx, vl, nx, beta, psi(1,nvec+ic), kdmx )
-              ELSE
-                 !
-                 !  all other procs receive
-                 ! 
-                 CALL mp_bcast( vtmp(:,1:nc), root, ortho_parent_comm )
-                 CALL ZGEMM( 'N', 'N', kdim, nc, nr, ONE, &
-                          hpsi(1,ir), kdmx, vtmp, nx, beta, psi(1,nvec+ic), kdmx )
-              END IF
-              ! 
-              beta = ONE
-
-           END DO
-           !
-        END IF
-        !
-     END DO
-     !
-     DEALLOCATE( vtmp )
-     !
-     CALL threaded_memcpy(hpsi, psi(1,nvec+1), nvec*npol*npwx*2)
-     !
-     RETURN
-  END SUBROUTINE refresh_hpsi
   !
   SUBROUTINE set_e_from_h()
      INTEGER :: nc, ic, i

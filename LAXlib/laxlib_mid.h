@@ -97,3 +97,25 @@ SUBROUTINE laxlib_compute_distmat_z( dm, kdim, alpha, v, ldv, w, ldw,&
 END SUBROUTINE
 END INTERFACE
 
+
+INTERFACE laxlib_distmat_refresh
+SUBROUTINE laxlib_distmat_refresh_z( mdim, ndim, kdim, alpha, v, ldv, dm, idesc, beta,&
+                                     w, ldw, irc_ip, nrc_ip, rank_ip)
+ IMPLICIT NONE
+ INCLUDE 'laxlib_kinds.fh'
+ INTEGER, INTENT(IN)     :: mdim
+ INTEGER, INTENT(IN)     :: ndim
+ INTEGER, INTENT(IN)     :: kdim
+ COMPLEX(DP), INTENT(IN) :: alpha
+ COMPLEX(DP), INTENT(IN), TARGET :: v(:,:)
+ INTEGER, INTENT(IN) :: ldv
+ COMPLEX(DP), INTENT(INOUT), TARGET :: dm( :, : )
+ INTEGER, INTENT(IN) :: idesc(:)
+ COMPLEX(DP), INTENT(IN) :: beta
+ COMPLEX(DP), INTENT(IN), TARGET :: w(:,:)
+ INTEGER, INTENT(IN) :: ldw
+ INTEGER, INTENT(IN) :: irc_ip( : )
+ INTEGER, INTENT(IN) :: nrc_ip( : )
+ INTEGER, INTENT(IN) :: rank_ip( :, : )
+END SUBROUTINE
+END INTERFACE
