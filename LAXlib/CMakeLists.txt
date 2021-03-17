@@ -11,6 +11,7 @@ set(src_lax
     transto.f90
     zhpev_drv.f90
     cdiaghg.f90
+    la_distmat_refresh.f90
     la_compute_distmat.f90)
 qe_enable_cuda_fortran("${src_lax}")
 
