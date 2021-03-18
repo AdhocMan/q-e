@@ -991,15 +991,23 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
   !
   CALL start_clock( 'cegterg:init' )
 
-  CALL compute_distmat( hl, psi, hpsi ) 
+  hl = ZERO
+  psi_d = psi
+  hpsi_d = hpsi
+  CALL laxlib_compute_distmat_gpu( hl, kdim, alpha, psi_d, kdmx, hpsi_d, kdmx, idesc, irc_ip, &
+                               nrc_ip, rank_ip, 1)
   !
+  sl = ZERO
   IF ( uspp ) THEN
      !
-     CALL compute_distmat( sl, psi, spsi ) 
+     spsi_d = spsi
+     CALL laxlib_compute_distmat_gpu( sl, kdim, alpha, psi_d, kdmx, spsi_d, kdmx, idesc, irc_ip, &
+                                  nrc_ip, rank_ip, 1)
      !
   ELSE
      !
-     CALL compute_distmat( sl, psi, psi )  
+     CALL laxlib_compute_distmat_gpu( sl, kdim, alpha, psi_d, kdmx, psi_d, kdmx, idesc, irc_ip, &
+                                  nrc_ip, rank_ip, 1)
      !
   END IF
   CALL stop_clock( 'cegterg:init' )
@@ -1218,7 +1226,12 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
         CALL start_clock( 'cegterg:last' )
         !
         CALL refresh_evc()
-        evc_d = evc       
+
+        evc_d = evc
+        call laxlib_distmat_refresh_gpu(kdim, nvec, idesc(LAX_DESC_N), ONE, psi_d, kdmx, vl, &
+                                    idesc, ZERO, evc_d, kdmx, irc_ip, &
+                                    nrc_ip, rank_ip )
+        evc = evc_d
         !
         IF ( notcnv == 0 ) THEN
            !
@@ -1247,11 +1260,25 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
         !
         IF ( uspp ) THEN
            !
-           CALL refresh_spsi()
+           ! CALL refresh_spsi()
+           psi_d = psi
+           spsi_d = spsi
+           call laxlib_distmat_refresh(kdim, nvec, idesc(LAX_DESC_N), ONE, spsi_d, kdmx, vl, &
+                                       idesc, ZERO, psi_d(:,nvec+1:2*nvec), &
+                                       kdmx, irc_ip, nrc_ip, rank_ip )
+           psi = psi_d
+           CALL threaded_memcpy(spsi, psi(1,nvec+1), nvec*npol*npwx*2)
            ! 
         END IF
         !
-        CALL refresh_hpsi()
+        ! CALL refresh_hpsi()
+        psi_d = psi
+        hpsi_d = hpsi
+        call laxlib_distmat_refresh(kdim, nvec, idesc(LAX_DESC_N), ONE, hpsi_d, kdmx, vl, &
+                                    idesc, ZERO, psi_d(:,nvec+1:2*nvec), &
+                                    kdmx, irc_ip, nrc_ip, rank_ip )
+        psi = psi_d
+        CALL threaded_memcpy(hpsi, psi(1,nvec+1), nvec*npol*npwx*2)
         !
         ! ... refresh the reduced hamiltonian
         !
