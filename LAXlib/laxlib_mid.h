@@ -97,6 +97,28 @@ SUBROUTINE laxlib_compute_distmat_z( dm, kdim, alpha, v, ldv, w, ldw,&
 END SUBROUTINE
 END INTERFACE
 
+INTERFACE laxlib_compute_distmat_gpu
+SUBROUTINE laxlib_compute_distmat_gpu_z( dm, kdim, alpha, v_d, ldv, w_d, ldw,&
+                                     idesc, irc_ip, nrc_ip, rank_ip, nb1)
+ IMPLICIT NONE
+ INCLUDE 'laxlib_kinds.fh'
+ COMPLEX(DP), INTENT(INOUT) :: dm( :, : )
+ INTEGER, INTENT(IN) :: kdim
+ COMPLEX(DP), INTENT(IN) :: alpha
+ COMPLEX(DP), INTENT(IN) :: v_d(:,:)
+ INTEGER, INTENT(IN) :: ldv
+ COMPLEX(DP), INTENT(IN) :: w_d(:,:)
+ INTEGER, INTENT(IN) :: ldw
+ INTEGER, INTENT(IN) :: idesc(:)
+ INTEGER, INTENT(IN) :: irc_ip( : )
+ INTEGER, INTENT(IN) :: nrc_ip( : )
+ INTEGER, INTENT(IN) :: rank_ip( :, : )
+ INTEGER, INTENT(IN) :: nb1
+#if defined(__CUDA)
+ attributes(DEVICE)   :: v_d, w_d
+#endif
+END SUBROUTINE
+END INTERFACE
 
 INTERFACE laxlib_distmat_refresh
 SUBROUTINE laxlib_distmat_refresh_z( mdim, ndim, kdim, alpha, v, ldv, dm, idesc, beta,&
@@ -119,3 +141,29 @@ SUBROUTINE laxlib_distmat_refresh_z( mdim, ndim, kdim, alpha, v, ldv, dm, idesc,
  INTEGER, INTENT(IN) :: rank_ip( :, : )
 END SUBROUTINE
 END INTERFACE
+
+INTERFACE laxlib_distmat_refresh_gpu
+SUBROUTINE laxlib_distmat_refresh_gpu_z( mdim, ndim, kdim, alpha, v_d, ldv, dm, idesc, beta,&
+                                     w_d, ldw, irc_ip, nrc_ip, rank_ip)
+ IMPLICIT NONE
+ INCLUDE 'laxlib_kinds.fh'
+ INTEGER, INTENT(IN)     :: mdim
+ INTEGER, INTENT(IN)     :: ndim
+ INTEGER, INTENT(IN)     :: kdim
+ COMPLEX(DP), INTENT(IN) :: alpha
+ COMPLEX(DP), INTENT(IN), TARGET :: v_d(:,:)
+ INTEGER, INTENT(IN) :: ldv
+ COMPLEX(DP), INTENT(INOUT), TARGET :: dm( :, : )
+ INTEGER, INTENT(IN) :: idesc(:)
+ COMPLEX(DP), INTENT(IN) :: beta
+ COMPLEX(DP), INTENT(IN), TARGET :: w_d(:,:)
+ INTEGER, INTENT(IN) :: ldw
+ INTEGER, INTENT(IN) :: irc_ip( : )
+ INTEGER, INTENT(IN) :: nrc_ip( : )
+ INTEGER, INTENT(IN) :: rank_ip( :, : )
+#if defined(__CUDA)
+ attributes(DEVICE)   :: v_d, w_d
+#endif
+END SUBROUTINE
+END INTERFACE
+

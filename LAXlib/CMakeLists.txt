@@ -12,7 +12,10 @@ set(src_lax
     zhpev_drv.f90
     cdiaghg.f90
     la_distmat_refresh.f90
-    la_compute_distmat.f90)
+    la_distmat_refresh_gpu.f90
+    la_compute_distmat.f90
+    la_compute_distmat_gpu.f90
+    )
 qe_enable_cuda_fortran("${src_lax}")
 
 qe_add_library(qe_lax ${src_lax})
