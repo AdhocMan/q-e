@@ -127,4 +127,4 @@ SUBROUTINE laxlib_distmat_refresh_gpu_z( mlocal, ndim, kdim, alpha, v_d, ldv, dm
 #endif
  !
  RETURN
-END SUBROUTINE laxlib_distmat_refresh_z
+END SUBROUTINE laxlib_distmat_refresh_gpu_z

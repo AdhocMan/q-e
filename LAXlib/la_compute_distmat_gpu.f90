@@ -126,4 +126,4 @@ SUBROUTINE laxlib_compute_distmat_gpu_z( dm, kdim, alpha, v_d, ldv, w_d, ldw, id
 #endif
  !
  RETURN
-END SUBROUTINE laxlib_compute_distmat_z
+END SUBROUTINE laxlib_compute_distmat_gpu_z
