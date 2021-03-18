@@ -1263,7 +1263,7 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
            ! CALL refresh_spsi()
            psi_d = psi
            spsi_d = spsi
-           call laxlib_distmat_refresh(kdim, nvec, idesc(LAX_DESC_N), ONE, spsi_d, kdmx, vl, &
+           call laxlib_distmat_refresh_gpu(kdim, nvec, idesc(LAX_DESC_N), ONE, spsi_d, kdmx, vl, &
                                        idesc, ZERO, psi_d(:,nvec+1:2*nvec), &
                                        kdmx, irc_ip, nrc_ip, rank_ip )
            psi = psi_d
@@ -1274,7 +1274,7 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
         ! CALL refresh_hpsi()
         psi_d = psi
         hpsi_d = hpsi
-        call laxlib_distmat_refresh(kdim, nvec, idesc(LAX_DESC_N), ONE, hpsi_d, kdmx, vl, &
+        call laxlib_distmat_refresh_gpu(kdim, nvec, idesc(LAX_DESC_N), ONE, hpsi_d, kdmx, vl, &
                                     idesc, ZERO, psi_d(:,nvec+1:2*nvec), &
                                     kdmx, irc_ip, nrc_ip, rank_ip )
         psi = psi_d
