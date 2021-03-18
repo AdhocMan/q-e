@@ -819,6 +819,8 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
     ! maximum local block dimension
   LOGICAL :: la_proc
     ! flag to distinguish procs involved in linear algebra
+  COMPLEX(DP) :: alpha
+    ! scaling of distribute mat computation
   INTEGER, ALLOCATABLE :: notcnv_ip( : )
   INTEGER, ALLOCATABLE :: ic_notcnv( : )
   !
@@ -954,6 +956,11 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
   notcnv = nvec
   nbase  = nvec
   conv   = .FALSE.
+  IF (ortho_parent_comm.ne.intra_bgrp_comm .and. nbgrp > 1) THEN
+    alpha = CMPLX( 1.D0/nbgrp, 0.D0 )
+  ELSE
+    alpha = ONE
+  ENDIF
   !
   IF ( uspp ) spsi = ZERO
   !
