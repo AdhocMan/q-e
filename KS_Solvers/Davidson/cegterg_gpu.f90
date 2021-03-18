@@ -1229,7 +1229,7 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
 
         evc_d = evc
         call laxlib_distmat_refresh_gpu(kdim, nvec, idesc(LAX_DESC_N), ONE, psi_d, kdmx, vl, &
-                                    idesc, ZERO, evc_d, kdmx, irc_ip, &
+                                    idesc, ZERO, evc_d, kdmx, 1, irc_ip, &
                                     nrc_ip, rank_ip )
         evc = evc_d
         !
@@ -1264,8 +1264,8 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
            psi_d = psi
            spsi_d = spsi
            call laxlib_distmat_refresh_gpu(kdim, nvec, idesc(LAX_DESC_N), ONE, spsi_d, kdmx, vl, &
-                                       idesc, ZERO, psi_d(:,nvec+1:2*nvec), &
-                                       kdmx, irc_ip, nrc_ip, rank_ip )
+                                       idesc, ZERO, psi_d, &
+                                       kdmx, nvec, irc_ip, nrc_ip, rank_ip )
            psi = psi_d
            CALL threaded_memcpy(spsi, psi(1,nvec+1), nvec*npol*npwx*2)
            ! 
@@ -1275,8 +1275,8 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
         psi_d = psi
         hpsi_d = hpsi
         call laxlib_distmat_refresh_gpu(kdim, nvec, idesc(LAX_DESC_N), ONE, hpsi_d, kdmx, vl, &
-                                    idesc, ZERO, psi_d(:,nvec+1:2*nvec), &
-                                    kdmx, irc_ip, nrc_ip, rank_ip )
+                                    idesc, ZERO, psi_d, &
+                                    kdmx, nvec, irc_ip, nrc_ip, rank_ip )
         psi = psi_d
         CALL threaded_memcpy(hpsi, psi(1,nvec+1), nvec*npol*npwx*2)
         !

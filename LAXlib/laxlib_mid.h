@@ -144,7 +144,7 @@ END INTERFACE
 
 INTERFACE laxlib_distmat_refresh_gpu
 SUBROUTINE laxlib_distmat_refresh_gpu_z( mdim, ndim, kdim, alpha, v_d, ldv, dm, idesc, beta,&
-                                     w_d, ldw, irc_ip, nrc_ip, rank_ip)
+                                     w_d, ldw, wcstart, irc_ip, nrc_ip, rank_ip)
  IMPLICIT NONE
  INCLUDE 'laxlib_kinds.fh'
  INTEGER, INTENT(IN)     :: mdim
@@ -158,6 +158,7 @@ SUBROUTINE laxlib_distmat_refresh_gpu_z( mdim, ndim, kdim, alpha, v_d, ldv, dm, 
  COMPLEX(DP), INTENT(IN) :: beta
  COMPLEX(DP), INTENT(IN), TARGET :: w_d(:,:)
  INTEGER, INTENT(IN) :: ldw
+ INTEGER, INTENT(IN)     :: wcstart
  INTEGER, INTENT(IN) :: irc_ip( : )
  INTEGER, INTENT(IN) :: nrc_ip( : )
  INTEGER, INTENT(IN) :: rank_ip( :, : )

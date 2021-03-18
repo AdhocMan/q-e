@@ -17,6 +17,9 @@ SUBROUTINE laxlib_compute_distmat_gpu_z( dm, kdim, alpha, v_d, ldv, w_d, ldw, id
 #if defined __SPLA
  USE spla
 #endif
+#if defined(__CUDA)
+  use cublas
+#endif
  USE mp,               ONLY : mp_root_sum
  !
  IMPLICIT NONE
