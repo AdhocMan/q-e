@@ -1140,15 +1140,24 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
      END IF
      !
      !
-     CALL update_distmat( hl, psi, hpsi )
+     psi_d = psi
+     hpsi_d = hpsi
+     CALL laxlib_compute_distmat_gpu( hl, kdim, alpha, psi_d, kdmx, hpsi_d, kdmx, idesc, irc_ip, &
+                                  nrc_ip, rank_ip, nb1)
+     ! CALL update_distmat( hl, psi, hpsi )
      !
      IF ( uspp ) THEN
         !
-        CALL update_distmat( sl, psi, spsi )
+        spsi_d = spsi
+        CALL laxlib_compute_distmat_gpu( sl, kdim, alpha, psi_d, kdmx, spsi_d, kdmx, idesc, irc_ip, &
+                                     nrc_ip, rank_ip, nb1)
+        ! CALL update_distmat( sl, psi, spsi )
         !
      ELSE
         !
-        CALL update_distmat( sl, psi, psi )
+        CALL laxlib_compute_distmat_gpu( sl, kdim, alpha, psi_d, kdmx, psi_d, kdmx, idesc, irc_ip, &
+                                     nrc_ip, rank_ip, nb1)
+        ! CALL update_distmat( sl, psi, psi )
         !
      END IF
      !
