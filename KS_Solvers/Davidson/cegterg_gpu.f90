@@ -1225,8 +1225,8 @@ SUBROUTINE pcegterg_gpu(h_psi_gpu, s_psi_gpu, uspp, g_psi_gpu, &
         !
         CALL start_clock( 'cegterg:last' )
         !
-        CALL refresh_evc()
-
+        ! CALL refresh_evc()
+        psi_d = psi
         evc_d = evc
         call laxlib_distmat_refresh_gpu(kdim, nvec, idesc(LAX_DESC_N), ONE, psi_d, kdmx, vl, &
                                     idesc, ZERO, evc_d, kdmx, 1, irc_ip, &
