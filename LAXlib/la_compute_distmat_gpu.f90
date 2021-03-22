@@ -47,9 +47,9 @@ SUBROUTINE laxlib_compute_distmat_gpu_z( dm, kdim, alpha, v_d, ldv, w_d, ldw, id
  INTEGER :: status_spla
  INTEGER :: ortho_parent_comm
  type(c_ptr) :: mat_dis_spla, ctx_spla
- #if defined(__CUDA)
+#if defined(__CUDA)
    attributes(DEVICE)   :: v_d, w_d, vtmp_d
- #endif
+#endif
  !
  nx = idesc(LAX_DESC_NRCX)
  CALL laxlib_getval( ortho_parent_comm = ortho_parent_comm, ctx_spla = ctx_spla, &

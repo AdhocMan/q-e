@@ -51,9 +51,9 @@ SUBROUTINE laxlib_distmat_refresh_gpu_z( mlocal, ndim, kdim, alpha, v_d, ldv, dm
  INTEGER :: ortho_parent_comm
  COMPLEX(DP) :: beta_loop
  type(c_ptr) :: mat_dis_spla, ctx_spla
- #if defined(__CUDA)
+#if defined(__CUDA)
    attributes(DEVICE)   :: v_d, w_d, vtmp_d
- #endif
+#endif
  !
  nx = idesc(LAX_DESC_NRCX)
  CALL laxlib_getval( ortho_parent_comm = ortho_parent_comm, ctx_spla = ctx_spla, &
@@ -106,7 +106,7 @@ SUBROUTINE laxlib_distmat_refresh_gpu_z( mlocal, ndim, kdim, alpha, v_d, ldv, dm
                 CALL mp_bcast( dm(:,1:nc), root, ortho_parent_comm )
                 vtmp_d(1:nx, 1:nc) = dm(1:nx, 1:nc)
                 CALL ZGEMM( 'N', 'N', mlocal, nc, nr, alpha, &
-                         v_d(1,ir), ldv, vtmp_d, nx, beta_loop, w_d(1,wcstart+ic), ldw )
+                         v_d(1,ir), ldv, vtmp_d, nx, beta_loop, w_d(1,wcstart+ic-1), ldw )
              ELSE
                 !
                 !  all other procs receive
@@ -114,7 +114,7 @@ SUBROUTINE laxlib_distmat_refresh_gpu_z( mlocal, ndim, kdim, alpha, v_d, ldv, dm
                 CALL mp_bcast( vtmp(:,1:nc), root, ortho_parent_comm )
                 vtmp_d(:, 1:nc) = dm(:, 1:nc)
                 CALL ZGEMM( 'N', 'N', mlocal, nc, nr, alpha, &
-                         v_d(1,ir), ldv, vtmp_d, nx, beta_loop, w_d(1,wcstart+ic), ldw )
+                         v_d(1,ir), ldv, vtmp_d, nx, beta_loop, w_d(1,wcstart+ic-1), ldw )
              END IF
              ! 
              beta_loop = ONE
