@@ -804,7 +804,6 @@ SUBROUTINE pcegterg(h_psi, s_psi, uspp, g_psi, &
   CALL laxlib_compute_distmat( hl, kdim, alpha, psi, kdmx, hpsi, kdmx, idesc, irc_ip, &
                                nrc_ip, rank_ip, 1)
   ! CALL compute_distmat( hl, psi, hpsi ) 
-  CALL start_clock( 'distm_refr' )
   !
   sl = ZERO
   IF ( uspp ) THEN
