@@ -44,6 +44,7 @@ SUBROUTINE laxlib_compute_distmat_z( dm, kdim, alpha, v, ldv, w, ldw, idesc, &
  INTEGER :: ortho_parent_comm
  type(c_ptr) :: mat_dis_spla, ctx_spla
  !
+ CALL start_clock( 'distm_comp' )
  nx = idesc(LAX_DESC_NRCX)
  CALL laxlib_getval( ortho_parent_comm = ortho_parent_comm, ctx_spla = ctx_spla, &
                      mat_dis_spla = mat_dis_spla )
@@ -117,6 +118,7 @@ SUBROUTINE laxlib_compute_distmat_z( dm, kdim, alpha, v, ldv, w, ldw, idesc, &
  !
  DEALLOCATE( vtmp )
 #endif
+ CALL stop_clock( 'distm_comp' )
  !
  RETURN
 END SUBROUTINE laxlib_compute_distmat_z

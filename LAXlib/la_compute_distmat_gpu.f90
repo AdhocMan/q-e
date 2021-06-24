@@ -51,6 +51,7 @@ SUBROUTINE laxlib_compute_distmat_gpu_z( dm, kdim, alpha, v_d, ldv, w_d, ldw, id
    attributes(DEVICE)   :: v_d, w_d, vtmp_d
 #endif
  !
+ CALL start_clock( 'distm_comp' )
  nx = idesc(LAX_DESC_NRCX)
  CALL laxlib_getval( ortho_parent_comm = ortho_parent_comm, ctx_spla = ctx_spla, &
                      mat_dis_spla = mat_dis_spla )
@@ -127,6 +128,7 @@ SUBROUTINE laxlib_compute_distmat_gpu_z( dm, kdim, alpha, v_d, ldv, w_d, ldw, id
  DEALLOCATE( vtmp )
  DEALLOCATE( vtmp_d )
 #endif
+ CALL stop_clock( 'distm_comp' )
  !
  RETURN
 END SUBROUTINE laxlib_compute_distmat_gpu_z

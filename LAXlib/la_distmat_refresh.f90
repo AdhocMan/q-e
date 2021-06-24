@@ -47,6 +47,7 @@ SUBROUTINE laxlib_distmat_refresh_z( mlocal, ndim, kdim, alpha, v, ldv, dm, ides
  COMPLEX(DP) :: beta_loop
  type(c_ptr) :: mat_dis_spla, ctx_spla
  !
+ CALL start_clock( 'distm_refr' )
  nx = idesc(LAX_DESC_NRCX)
  CALL laxlib_getval( ortho_parent_comm = ortho_parent_comm, ctx_spla = ctx_spla, &
                      mat_dis_spla = mat_dis_spla )
@@ -117,6 +118,7 @@ SUBROUTINE laxlib_distmat_refresh_z( mlocal, ndim, kdim, alpha, v, ldv, dm, ides
  !
  DEALLOCATE( vtmp )
 #endif
+ CALL stop_clock( 'distm_refr' )
  !
  RETURN
 END SUBROUTINE laxlib_distmat_refresh_z

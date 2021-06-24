@@ -55,6 +55,7 @@ SUBROUTINE laxlib_distmat_refresh_gpu_z( mlocal, ndim, kdim, alpha, v_d, ldv, dm
    attributes(DEVICE)   :: v_d, w_d, vtmp_d
 #endif
  !
+ CALL start_clock( 'distm_refr' )
  nx = idesc(LAX_DESC_NRCX)
  CALL laxlib_getval( ortho_parent_comm = ortho_parent_comm, ctx_spla = ctx_spla, &
                      mat_dis_spla = mat_dis_spla )
@@ -129,6 +130,7 @@ SUBROUTINE laxlib_distmat_refresh_gpu_z( mlocal, ndim, kdim, alpha, v_d, ldv, dm
  DEALLOCATE( vtmp )
  DEALLOCATE( vtmp_d )
 #endif
+ CALL stop_clock( 'distm_refr' )
  !
  RETURN
 END SUBROUTINE laxlib_distmat_refresh_gpu_z

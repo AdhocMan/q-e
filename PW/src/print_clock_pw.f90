@@ -109,6 +109,8 @@ SUBROUTINE print_clock_pw()
       WRITE( stdout, '(/5x,"Called by *egterg:")' )
       IF ( gamma_only ) THEN
          CALL print_clock( 'rdiaghg' )
+         CALL print_clock( 'distm_refr' )
+         CALL print_clock( 'distm_comp' )
          IF ( iverbosity > 0 )  THEN
             CALL print_clock( 'regterg:overlap' )
             CALL print_clock( 'regterg:update' )
@@ -119,6 +121,8 @@ SUBROUTINE print_clock_pw()
          ENDIF
       ELSE
          CALL print_clock( 'cdiaghg' )
+         CALL print_clock( 'distm_refr' )
+         CALL print_clock( 'distm_comp' )
          IF ( iverbosity > 0 )  THEN
             CALL print_clock( 'cegterg:overlap' )
             CALL print_clock( 'cegterg:update' )
