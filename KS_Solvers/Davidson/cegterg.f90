@@ -1313,7 +1313,7 @@ CONTAINS
         END IF
      END IF
      RETURN
-  END SUBROU!
+  END SUBROUTINE set_h_from_e
 
   SUBROUTINE compute_distmat( dm, v, w )
      !
@@ -1430,6 +1430,5 @@ CONTAINS
      DEALLOCATE( vtmp )
      RETURN
   END SUBROUTINE update_distmat
-  !TINE set_h_from_e
   !
 END SUBROUTINE pcegterg
