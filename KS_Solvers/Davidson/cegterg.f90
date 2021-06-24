@@ -801,23 +801,23 @@ SUBROUTINE pcegterg(h_psi, s_psi, uspp, g_psi, &
   CALL start_clock( 'cegterg:init' )
 
   hl = ZERO
-  ! CALL laxlib_compute_distmat( hl, kdim, alpha, psi, kdmx, hpsi, kdmx, idesc, irc_ip, &
-  !                              nrc_ip, rank_ip, 1)
-  CALL compute_distmat( hl, psi, hpsi ) 
+  CALL laxlib_compute_distmat( hl, kdim, alpha, psi, kdmx, hpsi, kdmx, idesc, irc_ip, &
+                               nrc_ip, rank_ip, 1)
+  ! CALL compute_distmat( hl, psi, hpsi ) 
   CALL start_clock( 'distm_refr' )
   !
   sl = ZERO
   IF ( uspp ) THEN
      !
-     ! CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, spsi, kdmx, idesc, irc_ip, &
-     !                              nrc_ip, rank_ip, 1)
-     CALL compute_distmat( sl, psi, spsi ) 
+     CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, spsi, kdmx, idesc, irc_ip, &
+                                  nrc_ip, rank_ip, 1)
+     ! CALL compute_distmat( sl, psi, spsi ) 
      !
   ELSE
      !
-     ! CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, psi, kdmx, idesc, irc_ip, &
-     !                              nrc_ip, rank_ip, 1)
-     CALL compute_distmat( sl, psi, psi )  
+     CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, psi, kdmx, idesc, irc_ip, &
+                                  nrc_ip, rank_ip, 1)
+     ! CALL compute_distmat( sl, psi, psi )  
      !
   END IF
   CALL stop_clock( 'cegterg:init' )
@@ -957,21 +957,21 @@ SUBROUTINE pcegterg(h_psi, s_psi, uspp, g_psi, &
      END IF
      !
      !
-     ! CALL laxlib_compute_distmat( hl, kdim, alpha, psi, kdmx, hpsi, kdmx, idesc, irc_ip, &
-     !                              nrc_ip, rank_ip, nb1)
-     CALL update_distmat( hl, psi, hpsi )
+     CALL laxlib_compute_distmat( hl, kdim, alpha, psi, kdmx, hpsi, kdmx, idesc, irc_ip, &
+                                  nrc_ip, rank_ip, nb1)
+     ! CALL update_distmat( hl, psi, hpsi )
      !
      IF ( uspp ) THEN
         !
-        ! CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, spsi, kdmx, idesc, irc_ip, &
-        !                              nrc_ip, rank_ip, nb1)
-        CALL update_distmat( sl, psi, spsi )
+        CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, spsi, kdmx, idesc, irc_ip, &
+                                     nrc_ip, rank_ip, nb1)
+        ! CALL update_distmat( sl, psi, spsi )
         !
      ELSE
         !
-        ! CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, psi, kdmx, idesc, irc_ip, &
-        !                              nrc_ip, rank_ip, nb1)
-        CALL update_distmat( sl, psi, psi )
+        CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, psi, kdmx, idesc, irc_ip, &
+                                     nrc_ip, rank_ip, nb1)
+        ! CALL update_distmat( sl, psi, psi )
         !
      END IF
      !
