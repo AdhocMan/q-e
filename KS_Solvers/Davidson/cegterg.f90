@@ -801,19 +801,23 @@ SUBROUTINE pcegterg(h_psi, s_psi, uspp, g_psi, &
   CALL start_clock( 'cegterg:init' )
 
   hl = ZERO
-  CALL laxlib_compute_distmat( hl, kdim, alpha, psi, kdmx, hpsi, kdmx, idesc, irc_ip, &
-                               nrc_ip, rank_ip, 1)
+  ! CALL laxlib_compute_distmat( hl, kdim, alpha, psi, kdmx, hpsi, kdmx, idesc, irc_ip, &
+  !                              nrc_ip, rank_ip, 1)
+  CALL compute_distmat( hl, psi, hpsi ) 
+  CALL start_clock( 'distm_refr' )
   !
   sl = ZERO
   IF ( uspp ) THEN
      !
-     CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, spsi, kdmx, idesc, irc_ip, &
-                                  nrc_ip, rank_ip, 1)
+     ! CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, spsi, kdmx, idesc, irc_ip, &
+     !                              nrc_ip, rank_ip, 1)
+     CALL compute_distmat( sl, psi, spsi ) 
      !
   ELSE
      !
-     CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, psi, kdmx, idesc, irc_ip, &
-                                  nrc_ip, rank_ip, 1)
+     ! CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, psi, kdmx, idesc, irc_ip, &
+     !                              nrc_ip, rank_ip, 1)
+     CALL compute_distmat( sl, psi, psi )  
      !
   END IF
   CALL stop_clock( 'cegterg:init' )
@@ -953,18 +957,21 @@ SUBROUTINE pcegterg(h_psi, s_psi, uspp, g_psi, &
      END IF
      !
      !
-     CALL laxlib_compute_distmat( hl, kdim, alpha, psi, kdmx, hpsi, kdmx, idesc, irc_ip, &
-                                  nrc_ip, rank_ip, nb1)
+     ! CALL laxlib_compute_distmat( hl, kdim, alpha, psi, kdmx, hpsi, kdmx, idesc, irc_ip, &
+     !                              nrc_ip, rank_ip, nb1)
+     CALL update_distmat( hl, psi, hpsi )
      !
      IF ( uspp ) THEN
         !
-        CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, spsi, kdmx, idesc, irc_ip, &
-                                     nrc_ip, rank_ip, nb1)
+        ! CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, spsi, kdmx, idesc, irc_ip, &
+        !                              nrc_ip, rank_ip, nb1)
+        CALL update_distmat( sl, psi, spsi )
         !
      ELSE
         !
-        CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, psi, kdmx, idesc, irc_ip, &
-                                     nrc_ip, rank_ip, nb1)
+        ! CALL laxlib_compute_distmat( sl, kdim, alpha, psi, kdmx, psi, kdmx, idesc, irc_ip, &
+        !                              nrc_ip, rank_ip, nb1)
+        CALL update_distmat( sl, psi, psi )
         !
      END IF
      !
@@ -1306,6 +1313,123 @@ CONTAINS
         END IF
      END IF
      RETURN
-  END SUBROUTINE set_h_from_e
+  END SUBROU!
+
+  SUBROUTINE compute_distmat( dm, v, w )
+     !
+     !  This subroutine compute <vi|wj> and store the
+     !  result in distributed matrix dm 
+     !
+     INTEGER :: ipc, ipr
+     INTEGER :: nr, nc, ir, ic, root
+     COMPLEX(DP), INTENT(OUT) :: dm( :, : )
+     COMPLEX(DP) :: v(:,:), w(:,:)
+     COMPLEX(DP), ALLOCATABLE :: work( :, : )
+     !
+     ALLOCATE( work( nx, nx ) )
+     !
+     work = ZERO
+     !
+     !  Only upper triangle is computed, then the matrix is hermitianized
+     !
+     DO ipc = 1, idesc(LAX_DESC_NPC) !  loop on column procs 
+        !
+        nc = nrc_ip( ipc )
+        ic = irc_ip( ipc )
+        !
+        DO ipr = 1, ipc ! idesc(LAX_DESC_NPR) ! ipc ! use symmetry for the loop on row procs
+           !
+           nr = nrc_ip( ipr )
+           ir = irc_ip( ipr )
+           !
+           !  rank of the processor for which this block (ipr,ipc) is destinated
+           !
+           root = rank_ip( ipr, ipc )
+
+           ! use blas subs. on the matrix block
+
+           CALL ZGEMM( 'C', 'N', nr, nc, kdim, ONE , &
+                       v(1,ir), kdmx, w(1,ic), kdmx, ZERO, work, nx )
+
+           ! accumulate result on dm of root proc.
+
+           CALL mp_root_sum( work, dm, root, ortho_parent_comm )
+
+        END DO
+        !
+     END DO
+     if (ortho_parent_comm.ne.intra_bgrp_comm .and. nbgrp > 1) dm = dm/nbgrp
+     !
+     !  The matrix is hermitianized using upper triangle
+     !
+     CALL laxlib_zsqmher( nbase, dm, nx, idesc )
+     !
+     DEALLOCATE( work )
+     !
+     RETURN
+  END SUBROUTINE compute_distmat
+  !
+  !
+  SUBROUTINE update_distmat( dm, v, w )
+     !
+     INTEGER :: ipc, ipr
+     INTEGER :: nr, nc, ir, ic, root, icc, ii
+     COMPLEX(DP) :: dm( :, : )
+     COMPLEX(DP) :: v(:,:), w(:,:)
+     COMPLEX(DP), ALLOCATABLE :: vtmp( :, : )
+
+     ALLOCATE( vtmp( nx, nx ) )
+     !
+     vtmp = ZERO
+     !
+     DO ipc = 1, idesc(LAX_DESC_NPC)
+        !
+        nc = nrc_ip( ipc )
+        ic = irc_ip( ipc )
+        !
+        IF( ic+nc-1 >= nb1 ) THEN
+           !
+           nc = MIN( nc, ic+nc-1 - nb1 + 1 )
+           IF( ic >= nb1 ) THEN
+              ii = ic
+              icc = 1
+           ELSE
+              ii = nb1
+              icc = nb1-ic+1
+           END IF
+           !
+           ! icc to nc is the local index of the unconverged bands
+           ! ii is the global index of the first unconverged bands
+           !
+           DO ipr = 1, ipc ! idesc(LAX_DESC_NPR) use symmetry
+              !
+              nr = nrc_ip( ipr )
+              ir = irc_ip( ipr )
+              !
+              root = rank_ip( ipr, ipc )
+
+              CALL ZGEMM( 'C', 'N', nr, nc, kdim, ONE, v(1, ir), &
+                          kdmx, w(1,ii), kdmx, ZERO, vtmp, nx )
+              IF (ortho_parent_comm.ne.intra_bgrp_comm .and. nbgrp > 1) vtmp = vtmp/nbgrp
+              !
+              IF(  (idesc(LAX_DESC_ACTIVE_NODE) > 0) .AND. &
+                   (ipr-1 == idesc(LAX_DESC_MYR)) .AND. (ipc-1 == idesc(LAX_DESC_MYC)) ) THEN
+                 CALL mp_root_sum( vtmp(:,1:nc), dm(:,icc:icc+nc-1), root, ortho_parent_comm )
+              ELSE
+                 CALL mp_root_sum( vtmp(:,1:nc), dm, root, ortho_parent_comm )
+              END IF
+
+           END DO
+           !
+        END IF
+        !
+     END DO
+     !
+     CALL laxlib_zsqmher( nbase+notcnv, dm, nx, idesc )
+     !
+     DEALLOCATE( vtmp )
+     RETURN
+  END SUBROUTINE update_distmat
+  !TINE set_h_from_e
   !
 END SUBROUTINE pcegterg
